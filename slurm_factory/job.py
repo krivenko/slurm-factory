@@ -41,7 +41,7 @@ for path in os.environ["PATH"].split(os.pathsep):
 if not(default_sbatch_path): warn("Could not locate 'sbatch' executable")
 
 # RegExp for job_id extraction
-job_id_regexp = re.compile("^Submitted batch job ([0-9]+)$")
+job_id_regexp = re.compile("^([0-9]+)$")
 
 # Validate an e-mail address
 def valid_email(email):
@@ -107,6 +107,7 @@ class SLURMJob:
         t = "#!%s\n" % shell_path
         if self.name:     t += render_option("job-name", self.name)
         if self.walltime: t += render_option("time", format_timedelta(self.walltime))
+        t += render_option("parsable")
         return t
 
     def submit(self, sbatch_path = default_sbatch_path):
@@ -118,7 +119,7 @@ class SLURMJob:
             raise RuntimeError(error_msg)
         else:
             self.submitted = True
-            self.job_id = int(job_id_regexp.match(stdoutdata).group(1))
+            self.job_id = int(job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
             return self.job_id
 
 def chain_jobs():
