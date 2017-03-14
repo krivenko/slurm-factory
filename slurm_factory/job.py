@@ -28,6 +28,7 @@ import os
 import re
 from subprocess import Popen, PIPE
 from warnings import warn
+from datetime import timedelta
 
 # Locate default shell
 shell_path = os.environ['SHELL']
@@ -47,6 +48,27 @@ def valid_email(email):
     from email.utils import parseaddr
     return '@' in parseaddr(email)[1]
 
+# Add #SBATCH option line to 'text'
+def render_option(name, value = None):
+    if value:
+        return "#SBATCH --%s=%s\n" % (name, value)
+    else:
+        return "#SBATCH --%s\n" % name
+
+# Print a timedelta object in SLURM format
+def format_timedelta(td):
+    if td.total_seconds() < 3600:
+        return "%02i:%02i" % (td.seconds/60, td.seconds%60)
+    else:
+        hours = td.seconds / 3600
+        seconds = td.seconds % 3600
+        if td.days == 0:
+            return "%02i:%02i:%02i" % (hours, seconds/60, seconds%60)
+        else:
+            return "%i-%02i:%02i:%02i" % (td.days, hours, seconds/60, seconds%60)
+
+#Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
+
 class SLURMJob:
     """Description of a SLURM job"""
 
@@ -56,6 +78,9 @@ class SLURMJob:
 
         # Job Name
         self.name = kwargs.pop('name','')
+        # Wall time
+        self.walltime = kwargs.pop('walltime',None)
+
 
         # List of jobs, this job depends on
 #       self.dependencies = []
@@ -67,14 +92,22 @@ class SLURMJob:
 #        # Submit in a held state
 #        self.hold = False
 
+    def set_walltime(self, *args, **kwargs):
+        if len(args) > 0:
+            assert len(args)==1 and len(kwargs)==0 and isinstance(args[0],timedelta)
+            self.walltime = args[0]
+        else:
+            self.walltime = timedelta(**kwargs)
+
 #    def hold(h = True):
 #        """ """
 #        self.hold = h
 
     def dump(self):
-        text = "#!%s\n" % shell_path
-        if self.name: text += "#SBATCH --job-name=%s\n" % self.name
-        return text
+        t = "#!%s\n" % shell_path
+        if self.name:     t += render_option("job-name", self.name)
+        if self.walltime: t += render_option("time", format_timedelta(self.walltime))
+        return t
 
     def submit(self, sbatch_path = default_sbatch_path):
         p = Popen(sbatch_path, stdout=PIPE, stdin=PIPE, stderr=PIPE)
