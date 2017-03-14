@@ -67,8 +67,6 @@ def format_timedelta(td):
         else:
             return "%i-%02i:%02i:%02i" % (td.days, hours, seconds/60, seconds%60)
 
-#Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-
 class SLURMJob:
     """Description of a SLURM job"""
 
@@ -80,7 +78,8 @@ class SLURMJob:
         self.name = kwargs.pop('name','')
         # Wall time
         self.walltime = kwargs.pop('walltime',None)
-
+        # Job script body
+        self.set_body(kwargs.pop('body',''))
 
         # List of jobs, this job depends on
 #       self.dependencies = []
@@ -99,15 +98,23 @@ class SLURMJob:
         else:
             self.walltime = timedelta(**kwargs)
 
+    def set_body(self, body):
+        self.body = body.replace('\r\n','\n')
+
 #    def hold(h = True):
 #        """ """
 #        self.hold = h
 
     def dump(self):
+        # Add shebang
         t = "#!%s\n" % shell_path
+        # Generate header
         if self.name:     t += render_option("job-name", self.name)
         if self.walltime: t += render_option("time", format_timedelta(self.walltime))
         t += render_option("parsable")
+        # Add body
+        t += self.body
+
         return t
 
     def submit(self, sbatch_path = default_sbatch_path):

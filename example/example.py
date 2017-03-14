@@ -13,3 +13,8 @@ job.set_walltime(hours = 7, minutes = 12, seconds = 55)
 print(job.dump())
 job.set_walltime(days = 4, hours = 7, minutes = 12, seconds = 55)
 print(job.dump())
+
+job.set_body("""
+srun -n ${SLURM_NTASKS} /usr/bin/ls
+""")
+print(job.dump())

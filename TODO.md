@@ -1,7 +1,10 @@
 * workdir
+* partition
+* output/error files
 * node selection
-* priority/hold
 * e-mail notifications
+* priority/hold
 * begin/deadline
 * signals
-* dependencies
+* job dependencies
+* documentation
