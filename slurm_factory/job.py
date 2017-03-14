@@ -48,7 +48,7 @@ def valid_email(email):
     from email.utils import parseaddr
     return '@' in parseaddr(email)[1]
 
-# Add #SBATCH option line to 'text'
+# Add #SBATCH option line
 def render_option(name, value = None):
     if value:
         return "#SBATCH --%s=%s\n" % (name, value)
