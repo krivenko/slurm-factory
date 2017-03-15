@@ -41,14 +41,15 @@ for path in os.environ["PATH"].split(os.pathsep):
 if not(default_sbatch_path): warn("Could not locate 'sbatch' executable")
 
 # RegExp for job_id extraction
-parse_job_id_regexp = re.compile("^([0-9]+)$")
-# RegExp for filename pattern Validation
-filename_pattern_regexp = re.compile("%[0-9]*[%AaJjNnstux]")
-
-# Validate an e-mail address
-def valid_email(email):
-    from email.utils import parseaddr
-    return '@' in parseaddr(email)[1]
+parse_job_id_regexp = re.compile(r"^(\d+)$")
+# RegExp for filename pattern validation
+filename_pattern_regexp = re.compile(r"%\d*[%AaJjNnstux]")
+# RegExp list for constraints validation
+constraints_regexps = (r"^\w+(\*\d)*(,\w+(\*\d)*)*$",      # List
+                       r"^\w+(\*\d)*(\|\w+(\*\d)*)*$",     # OR
+                       r"^\w+(\*\d)*(&\w+(\*\d)*)*$",      # AND
+                       r"^\[\w+(\*\d)*(\|\w+(\*\d)*)*\]$") # Matching OR
+constraints_regexps = tuple(re.compile(r) for r in constraints_regexps)
 
 # Validate filename pattern
 def valid_filename_patterns(filename):
@@ -93,6 +94,11 @@ class SLURMJob:
                              kwargs.pop('error', None),
                              kwargs.pop('input', None),
                              kwargs.pop('open_mode', None))
+        # E-mail notifications
+        self.set_email(kwargs.pop('mail_user', None), kwargs.pop('mail_type', None))
+        # Constraint
+        self.set_constraint(kwargs.pop('constraint', None))
+
         # Job script body
         self.set_body(kwargs.pop('body', ''))
 
@@ -154,19 +160,43 @@ class SLURMJob:
         else:
             self.open_mode = valid_modes[mode]
 
+    def set_email(self, mail_user, mail_type):
+
+        valid_types = ('BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL', 'STAGE_OUT',
+                       'TIME_LIMIT', 'TIME_LIMIT_90', 'TIME_LIMIT_80', 'TIME_LIMIT_50')
+        if mail_type is None or mail_type == 'NONE':
+            self.mail_user = None
+            self.mail_type = None
+        elif mail_type not in valid_types:
+            raise RuntimeError("set_email: invalid event type %s" % mail_type)
+        else:
+            self.mail_type = mail_type
+            self.mail_user = mail_user
+
+    def set_constraint(self, constraint):
+        if constraint is None: self.constraint = None
+        elif all(r.match(constraint) is None for r in constraints_regexps):
+            raise RuntimeError("set_constraint: invalid constraint %s" % constraint)
+        else:
+            self.constraint = constraint
+
     def dump(self):
         # Add shebang
         t = "#!%s\n" % shell_path
         # Generate header
-        if self.name:       t += render_option("job-name", self.name)
-        if self.partitions: t += render_option("partition", ','.join(map(str, self.partitions)))
-        if self.time:       t += render_option("time", format_timedelta(self.time))
-        if self.time_min:   t += render_option("time-min", format_timedelta(self.time_min))
-        if self.workdir:    t += render_option("workdir", str(self.workdir))
-        if self.output:     t += render_option("output", str(self.output))
-        if self.error:      t += render_option("error", str(self.error))
-        if self.input:      t += render_option("input", str(self.input))
-        if self.open_mode:  t += render_option("open-mode", str(self.open_mode))
+        if self.name:           t += render_option("job-name", self.name)
+        if self.partitions:     t += render_option("partition", ','.join(map(str, self.partitions)))
+        if self.time:           t += render_option("time", format_timedelta(self.time))
+        if self.time_min:       t += render_option("time-min", format_timedelta(self.time_min))
+        if self.workdir:        t += render_option("workdir", str(self.workdir))
+        if self.output:         t += render_option("output", str(self.output))
+        if self.error:          t += render_option("error", str(self.error))
+        if self.input:          t += render_option("input", str(self.input))
+        if self.open_mode:      t += render_option("open-mode", self.open_mode)
+        if self.mail_type:
+            t += render_option("mail-type", self.mail_type)
+            t += render_option("mail-user", str(self.mail_user))
+        if self.constraint:     t += render_option("constraint", str(self.constraint))
         t += render_option("parsable")
         # Add body
         t += self.body

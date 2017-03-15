@@ -17,27 +17,29 @@ Tier 1 functionality
     - `--ntasks-per-core=<ntasks>`
     - `--mincpus=<n>`
     - `--overcommit`
-    - `--mem=<size[units]>`
-    - `--mem-per-cpu=<size[units]>`
-    - `--tmp=<size[units]>`
     - `--switches=<count>[@<max-time>]`
     - `--core-spec=<num>`
     - `--thread-spec=<num>`
+    - `--exclusive[=user|mcs]`
+    - `--oversubscribe`
+    - `--spread-job`
+    - `--licenses=<license>`
+
+* Node selection constraints:
     - `--extra-node-info=<sockets[:cores[:threads]]>`
     - `--sockets-per-node=<sockets>`
     - `--cores-per-socket=<cores>`
     - `--threads-per-core=<threads>`
-    - `--exclusive[=user|mcs]`
-    - `--oversubscribe`
-    - `--contiguous`
-    - `--spread-job`
-    - `--nodelist`
-    - `--nodefile`
-    - `--exclude`
-    - `--constraint`
-    - `--licenses=<license>`
+    - `--mem=<size[units]>`
+    - `--mem-per-cpu=<size[units]>`
+    - `--tmp=<size[units]>`
+    - [DONE] `--constraint=<list>`
     - `--gres=<list>`
     - `--gres-flags=enforce-binding`
+    - `--contiguous`
+    - `--nodelist=<node name list>`
+    - `--nodefile=<node file>`
+    - `--exclude=<node name list>`
 
 * [DONE] Working directory:
     - [DONE] `--workdir=<directory>`
@@ -48,9 +50,9 @@ Tier 1 functionality
     - [DONE] `--error=<filename pattern>`
     - [DONE] `--open-mode=append|truncate`
 
-* E-mail notifications (with basic e-mail validation):
-    - `--mail-type=<type>`
-    - `--mail-user=<user>`
+* [DONE] E-mail notifications (with basic e-mail validation):
+    - [DONE] `--mail-type=<type>`
+    - [DONE] `--mail-user=<user>`
 
 * Signals
     - `--signal=[B:]<sig_num>[@<sig_time>]`
@@ -73,7 +75,8 @@ Tier 1 functionality
 * Cluster selection
     - `--clusters=<string>`
 
-* *Documentation*
+* **Unit tests**
+* **Documentation**
 
 Tier 2 functionality
 --------------------
