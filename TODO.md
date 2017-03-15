@@ -5,9 +5,9 @@ Tier 1 functionality
 --------------------
 
 * Resource allocation:
-    - `--partition=<partition_names>`
-    - `--time=<time>`
-    - `--time-min=<time>`
+    - [DONE] `--partition=<partition_names>`
+    - [DONE] `--time=<time>`
+    - [DONE] `--time-min=<time>`
     - `--nodes=<minnodes[-maxnodes]>`
     - `--use-min-nodes`
     - `--ntasks=<number>`
@@ -39,14 +39,14 @@ Tier 1 functionality
     - `--gres=<list>`
     - `--gres-flags=enforce-binding`
 
-* Working directory (validate filename patterns):
-    - `--workdir=<directory>`
+* [DONE] Working directory:
+    - [DONE] `--workdir=<directory>`
 
-* Input/output/error files (validate filename patterns):
-    - `--input=<filename pattern>`
-    - `--output=<filename pattern>`
-    - `--error=<filename pattern>`
-    - `--open-mode=append|truncate`
+* [DONE] Input/output/error files (validate filename patterns):
+    - [DONE] `--input=<filename pattern>`
+    - [DONE] `--output=<filename pattern>`
+    - [DONE] `--error=<filename pattern>`
+    - [DONE] `--open-mode=append|truncate`
 
 * E-mail notifications (with basic e-mail validation):
     - `--mail-type=<type>`
