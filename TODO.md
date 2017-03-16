@@ -90,8 +90,8 @@ Tier 2 functionality
     - `--checkpoint=<time>`
     - `--checkpoint-dir=<directory>`
 
-* SLURM version information:
-    - `--version`
+* [DONE] SLURM version information:
+    - [DONE] `--version`
 
 * Scheduling priority
     - `--priority=<value>`

@@ -28,3 +28,6 @@ print(job.dump())
 #print(valid_filename_patterns(r'%12kdsd'))
 #print(valid_filename_patterns(r'%0usd%11urf'))
 #print(valid_filename_patterns(r'%12usd%17urf'))
+
+print(slurm_version())
+print(slurm_version_info())

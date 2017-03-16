@@ -26,7 +26,7 @@ __metaclass__ = type
 
 import os
 import re
-from subprocess import Popen, PIPE
+from subprocess import Popen, check_output, PIPE
 from warnings import warn
 from datetime import timedelta
 
@@ -214,6 +214,19 @@ class SLURMJob:
             self.submitted = True
             self.job_id = int(parse_job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
             return self.job_id
+
+def slurm_version(sbatch_path = default_sbatch_path):
+    output = check_output([sbatch_path, '--version'])
+    return output.decode('utf-8').strip()
+
+def slurm_version_info(sbatch_path = default_sbatch_path):
+    sv = slurm_version(sbatch_path).replace('slurm','').strip()
+    def to_int_checked(x):
+        try:
+            return int(x)
+        except ValueError:
+            return x
+    return tuple(map(to_int_checked, sv.split('.')))
 
 def chain_jobs():
     # TODO
