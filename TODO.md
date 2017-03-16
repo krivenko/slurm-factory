@@ -54,8 +54,8 @@ Tier 1 functionality
     - [DONE] `--mail-type=<type>`
     - [DONE] `--mail-user=<user>`
 
-* Signals
-    - `--signal=[B:]<sig_num>[@<sig_time>]`
+* [DONE] Signals
+    - [DONE] `--signal=[B:]<sig_num>[@<sig_time>]`
 
 * Job dependencies:
     - `--dependency=<dependency_list>`
@@ -152,10 +152,10 @@ Tier 2 functionality
     - `--delay-boot=<minutes>`
     - `--wait-all-nodes=<value>`
 
-* Options specific to Cray systems:
+* Options specific to Cray systems (derived class `SLURMCrayJob`):
     - `--network=<type>`
 
-* Options specific to Blue Gene systems:
+* Options specific to Blue Gene systems (derived class `SLURMBlueGeneJob`):
     - `--blrts-image=<path>`
     - `--cnload-image=<path>`
     - `--conn-type=<type>`

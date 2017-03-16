@@ -16,6 +16,7 @@ job.set_constraint("haswell23,con19x,xx89a")
 job.set_constraint("haswell23*2|con19x|xx89a*7")
 job.set_constraint("haswell23*4&con19x&xx89a*7")
 job.set_constraint("[haswell23*7|con19x|xx89a*9]")
+job.set_signal(sig_num='USR1', sig_time=600, shell_only=True)
 
 job.set_body("""
 srun -n ${SLURM_NTASKS} pwd
@@ -29,5 +30,5 @@ print(job.dump())
 #print(valid_filename_patterns(r'%0usd%11urf'))
 #print(valid_filename_patterns(r'%12usd%17urf'))
 
-print(slurm_version())
-print(slurm_version_info())
+#print(slurm_version())
+#print(slurm_version_info())

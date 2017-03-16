@@ -40,6 +40,12 @@ for path in os.environ["PATH"].split(os.pathsep):
     if os.access(p, os.X_OK): default_sbatch_path = p
 if not(default_sbatch_path): warn("Could not locate 'sbatch' executable")
 
+# Names of all UNIX signals supported on this platform
+import signal
+all_signals = {k[3:] : v for k, v in sorted(signal.__dict__.items())
+               if k.startswith('SIG') and not k.startswith('SIG_')}
+del signal
+
 # RegExp for job_id extraction
 parse_job_id_regexp = re.compile(r"^(\d+)$")
 # RegExp for filename pattern validation
@@ -98,6 +104,8 @@ class SLURMJob:
         self.set_email(kwargs.pop('mail_user', None), kwargs.pop('mail_type', None))
         # Constraint
         self.set_constraint(kwargs.pop('constraint', None))
+        # Signal
+        self.signal = None
 
         # Job script body
         self.set_body(kwargs.pop('body', ''))
@@ -180,6 +188,17 @@ class SLURMJob:
         else:
             self.constraint = constraint
 
+    def set_signal(self, sig_num, sig_time = None, shell_only = False):
+        if not sig_num in all_signals.keys() and not sig_num in all_signals.values():
+            raise RuntimeError("set_signal: unknown signal number/name " + str(sig_num))
+
+        if sig_time is None:
+            self.signal = (sig_num, None, shell_only)
+        elif not 0 <= sig_time <= 0xffff:
+            raise RuntimeError("set_signal: sig_time must be an integer between 0 and 65535")
+        else:
+            self.signal = (sig_num, sig_time, shell_only)
+
     def dump(self):
         # Add shebang
         t = "#!%s\n" % shell_path
@@ -197,6 +216,11 @@ class SLURMJob:
             t += render_option("mail-type", self.mail_type)
             t += render_option("mail-user", str(self.mail_user))
         if self.constraint:     t += render_option("constraint", str(self.constraint))
+        if self.signal:
+            t += render_option("signal", "%s%s%s" % ('B:' if self.signal[2] else '',
+                                                     self.signal[0],
+                                                     '' if self.signal[1] is None else '@' + str(self.signal[1])))
+
         t += render_option("parsable")
         # Add body
         t += self.body
