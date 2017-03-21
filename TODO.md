@@ -26,13 +26,13 @@ Tier 1 functionality
     - `--licenses=<license>`
 
 * Node selection constraints:
-    - `--extra-node-info=<sockets[:cores[:threads]]>`
-    - `--sockets-per-node=<sockets>`
-    - `--cores-per-socket=<cores>`
-    - `--threads-per-core=<threads>`
-    - `--mem=<size[units]>`
-    - `--mem-per-cpu=<size[units]>`
-    - `--tmp=<size[units]>`
+    - [DONE] `--extra-node-info=<sockets[:cores[:threads]]>`
+    - [DONE] `--sockets-per-node=<sockets>`
+    - [DONE] `--cores-per-socket=<cores>`
+    - [DONE] `--threads-per-core=<threads>`
+    - [DONE] `--mem=<size[units]>`
+    - [DONE] `--mem-per-cpu=<size[units]>`
+    - [DONE] `--tmp=<size[units]>`
     - [DONE] `--constraint=<list>`
     - `--gres=<list>`
     - `--gres-flags=enforce-binding`

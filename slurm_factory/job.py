@@ -56,11 +56,18 @@ constraints_regexps = (r"^\w+(\*\d)*(,\w+(\*\d)*)*$",      # List
                        r"^\w+(\*\d)*(&\w+(\*\d)*)*$",      # AND
                        r"^\[\w+(\*\d)*(\|\w+(\*\d)*)*\]$") # Matching OR
 constraints_regexps = tuple(re.compile(r) for r in constraints_regexps)
+# RegExp for memory size expressions
+memory_size_regexp = re.compile(r"^[0-9]+[KMGT]$")
 
 # Validate filename pattern
 def valid_filename_patterns(filename):
     if r'\\' in filename: return True
     return ('%' not in re.sub(filename_pattern_regexp,'', filename))
+
+# Validate memory size int/string
+def valid_memory_size(size):
+    return (isinstance(size, int) and size > 0) or \
+           (isinstance(size, str) and not memory_size_regexp.match(size) is None)
 
 # Add #SBATCH option line
 def render_option(name, value = None):
@@ -93,6 +100,8 @@ class SLURMJob:
         self.set_partitions(kwargs.pop('partition', None))
         # Time & minimal time
         self.set_time(kwargs.pop('time', None), kwargs.pop('time_min', None))
+        # Node selection
+        self.select_nodes()
         # Working dir
         self.set_workdir(kwargs.pop('workdir', None))
         # Job streams
@@ -102,8 +111,6 @@ class SLURMJob:
                              kwargs.pop('open_mode', None))
         # E-mail notifications
         self.set_email(kwargs.pop('mail_user', None), kwargs.pop('mail_type', None))
-        # Constraint
-        self.set_constraint(kwargs.pop('constraint', None))
         # Signal
         self.signal = None
         #QoS
@@ -143,6 +150,54 @@ class SLURMJob:
             if self.time < self.time_min:
                 raise RuntimeError("set_time: 'time-min' cannot exceed 'time'")
 
+    def select_nodes(self, sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
+                     mem = None, mem_per_cpu = None, tmp = None, constraints = None):
+
+        if sockets_per_node is None: self.sockets_per_node = None
+        elif sockets_per_node <= 0:
+            raise RuntimeError("select_nodes: sockets_per_node must be positive")
+        else:
+            self.sockets_per_node = sockets_per_node
+
+        if cores_per_socket is None: self.cores_per_socket = None
+        elif cores_per_socket <= 0:
+            raise RuntimeError("select_nodes: cores_per_socket must be positive")
+        else:
+            self.cores_per_socket = cores_per_socket
+
+        if threads_per_core is None: self.threads_per_core = None
+        elif threads_per_core <= 0:
+            raise RuntimeError("select_nodes: threads_per_core must be positive")
+        else:
+            self.threads_per_core = threads_per_core
+
+        if mem is None: self.mem = None
+        elif not valid_memory_size(mem):
+            raise RuntimeError("select_nodes: invalid size argument to mem option")
+        else:
+            self.mem = mem
+
+        if mem_per_cpu is None: self.mem_per_cpu = None
+        elif not valid_memory_size(mem_per_cpu):
+            raise RuntimeError("select_nodes: invalid size argument to mem_per_cpu option")
+        else:
+            self.mem_per_cpu = mem_per_cpu
+
+        if (not self.mem is None) and (not self.mem_per_cpu is None):
+            raise RuntimeError("select_nodes: mem and mem_per_cpu options are mutually exclusive")
+
+        if tmp is None: self.tmp = None
+        elif not valid_memory_size(tmp):
+            raise RuntimeError("select_nodes: invalid size argument to tmp option")
+        else:
+            self.tmp = tmp
+
+        if constraints is None: self.constraints = None
+        elif all(r.match(constraints) is None for r in constraints_regexps):
+            raise RuntimeError("select_nodes: invalid constraints %s" % constraints)
+        else:
+            self.constraints = constraints
+
     def set_workdir(self, workdir):
         self.workdir = workdir
 
@@ -173,7 +228,6 @@ class SLURMJob:
             self.open_mode = valid_modes[mode]
 
     def set_email(self, mail_user, mail_type):
-
         valid_types = ('BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL', 'STAGE_OUT',
                        'TIME_LIMIT', 'TIME_LIMIT_90', 'TIME_LIMIT_80', 'TIME_LIMIT_50')
         if mail_type is None or mail_type == 'NONE':
@@ -184,13 +238,6 @@ class SLURMJob:
         else:
             self.mail_type = mail_type
             self.mail_user = mail_user
-
-    def set_constraint(self, constraint):
-        if constraint is None: self.constraint = None
-        elif all(r.match(constraint) is None for r in constraints_regexps):
-            raise RuntimeError("set_constraint: invalid constraint %s" % constraint)
-        else:
-            self.constraint = constraint
 
     def set_signal(self, sig_num, sig_time = None, shell_only = False):
         if not sig_num in all_signals.keys() and not sig_num in all_signals.values():
@@ -217,6 +264,17 @@ class SLURMJob:
         if self.partitions:     t += render_option("partition", ','.join(map(str, self.partitions)))
         if self.time:           t += render_option("time", format_timedelta(self.time))
         if self.time_min:       t += render_option("time-min", format_timedelta(self.time_min))
+        extra_node_info = (self.sockets_per_node, self.cores_per_socket, self.threads_per_core)
+        if any(s is None for s in extra_node_info):
+            if self.sockets_per_node:   t += render_option("sockets-per-node", str(self.sockets_per_node))
+            if self.cores_per_socket:   t += render_option("cores-per-socket", str(self.cores_per_socket))
+            if self.threads_per_core:   t += render_option("threads-per-core", str(self.threads_per_core))
+        else:
+            t += render_option("extra-node-info", ':'.join(map(str, extra_node_info)))
+        if self.mem:            t += render_option("mem", str(self.mem))
+        if self.mem_per_cpu:    t += render_option("mem_per_cpu", str(self.mem_per_cpu))
+        if self.tmp:            t += render_option("tmp", str(self.tmp))
+        if self.constraints:    t += render_option("constraint", str(self.constraints))
         if self.workdir:        t += render_option("workdir", str(self.workdir))
         if self.output:         t += render_option("output", str(self.output))
         if self.error:          t += render_option("error", str(self.error))
@@ -225,7 +283,6 @@ class SLURMJob:
         if self.mail_type:
             t += render_option("mail-type", self.mail_type)
             t += render_option("mail-user", str(self.mail_user))
-        if self.constraint:     t += render_option("constraint", str(self.constraint))
         if self.signal:
             t += render_option("signal", "%s%s%s" % ('B:' if self.signal[2] else '',
                                                      self.signal[0],
