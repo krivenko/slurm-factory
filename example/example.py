@@ -16,7 +16,10 @@ job.set_constraint("haswell23,con19x,xx89a")
 job.set_constraint("haswell23*2|con19x|xx89a*7")
 job.set_constraint("haswell23*4&con19x&xx89a*7")
 job.set_constraint("[haswell23*7|con19x|xx89a*9]")
+job.set_qos("qos")
 job.set_signal(sig_num='USR1', sig_time=600, shell_only=True)
+job.set_clusters(['cluster1','cluster2'])
+job.set_qos("qos")
 
 job.set_body("""
 srun -n ${SLURM_NTASKS} pwd

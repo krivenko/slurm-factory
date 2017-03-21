@@ -38,7 +38,7 @@ default_sbatch_path = ""
 for path in os.environ["PATH"].split(os.pathsep):
     p = os.path.join(path, "sbatch")
     if os.access(p, os.X_OK): default_sbatch_path = p
-if not(default_sbatch_path): warn("Could not locate 'sbatch' executable")
+if not default_sbatch_path: warn("Could not locate 'sbatch' executable")
 
 # Names of all UNIX signals supported on this platform
 import signal
@@ -106,6 +106,10 @@ class SLURMJob:
         self.set_constraint(kwargs.pop('constraint', None))
         # Signal
         self.signal = None
+        #QoS
+        self.qos = None
+        # Clusters
+        self.clusters = None
 
         # Job script body
         self.set_body(kwargs.pop('body', ''))
@@ -199,6 +203,12 @@ class SLURMJob:
         else:
             self.signal = (sig_num, sig_time, shell_only)
 
+    def set_qos(self, qos):
+        self.qos = qos
+
+    def set_clusters(self, clusters):
+        self.clusters = [clusters] if isinstance(clusters, str) else clusters
+
     def dump(self):
         # Add shebang
         t = "#!%s\n" % shell_path
@@ -220,8 +230,11 @@ class SLURMJob:
             t += render_option("signal", "%s%s%s" % ('B:' if self.signal[2] else '',
                                                      self.signal[0],
                                                      '' if self.signal[1] is None else '@' + str(self.signal[1])))
+        if self.qos:            t += render_option("qos", str(self.qos))
+        if self.clusters:       t += render_option("clusters", ','.join(map(str, self.clusters)))
 
         t += render_option("parsable")
+        t += render_option("quiet")
         # Add body
         t += self.body
 

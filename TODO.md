@@ -69,11 +69,11 @@ Tier 1 functionality
     - `--deadline=<OPT>`
     - `--immediate`
 
-* Quality of service
-    - `--qos=<qos>`
+* [DONE] Quality of service
+    - [DONE] `--qos=<qos>`
 
-* Cluster selection
-    - `--clusters=<string>`
+* [DONE] Cluster selection
+    - [DONE] `--clusters=<string>`
 
 * **Unit tests**
 * **Documentation**
