@@ -64,10 +64,10 @@ Tier 1 functionality
 * [DONE] Reservations:
     - [DONE] `--reservation=<name>`
 
-* Allocation time constraints:
-    - `--begin=<time>`
-    - `--deadline=<OPT>`
-    - `--immediate`
+* [DONE] Allocation time constraints:
+    - [DONE] `--begin=<time>`
+    - [DONE] `--deadline=<OPT>`
+    - [DONE] `--immediate`
 
 * [DONE] Quality of service
     - [DONE] `--qos=<qos>`
@@ -75,16 +75,20 @@ Tier 1 functionality
 * [DONE] Cluster selection
     - [DONE] `--clusters=<string>`
 
+* Accounting:
+    - `--account=<account>`
+    - `--acctg-freq`
+    - `--profile=<all|none|[energy[,|task[,|lustre[,|network]]]]>`
+
+* Environment variables propagation:
+    - `--export=<environment variables | ALL | NONE>`
+    - `--export-file=<filename | fd>`
+
 * **Unit tests**
 * **Documentation**
 
 Tier 2 functionality
 --------------------
-
-* Accounting:
-    - `--account=<account>`
-    - `--acctg-freq`
-    - `--profile=<all|none|[energy[,|task[,|lustre[,|network]]]]>`
 
 * Checkpointing:
     - `--checkpoint=<time>`
@@ -125,10 +129,6 @@ Tier 2 functionality
     - `--uid=<user>`
     - `--gid=<group>`
     - `--reboot`
-
-* Environment variables propagation:
-    - `--export=<environment variables | ALL | NONE>`
-    - `--export-file=<filename | fd>`
 
 * Test submission:
     - `--test-only`

@@ -28,7 +28,7 @@ import os
 import re
 from subprocess import Popen, check_output, PIPE
 from warnings import warn
-from datetime import timedelta
+from datetime import datetime, date, time, timedelta
 
 # Locate default shell
 shell_path = os.environ['SHELL']
@@ -121,6 +121,10 @@ class SLURMJob:
         self.signal = None
         # Reservation
         self.set_reservation()
+        # Defer allocation
+        self.defer_allocation()
+        # Deadline
+        self.set_deadline()
         #QoS
         self.set_qos()
         # Clusters
@@ -265,6 +269,25 @@ class SLURMJob:
         else:
             self.reservation = reservation
 
+    def defer_allocation(self, begin = None, immediate = False):
+        self.immediate = immediate
+
+        if begin is None: self.begin = None
+        elif all(not isinstance(begin, t) for t in (date, time, datetime, timedelta)) and \
+             (not begin in ('midnight', 'noon', 'fika', 'teatime', 'today', 'tomorrow')):
+            raise RuntimeError("defer_allocation: begin has a wrong type")
+        elif isinstance(begin, timedelta) and begin.days < 0:
+            raise RuntimeError("defer_allocation: negative 'begin' durations are not allowed")
+        else:
+            self.begin = begin
+
+    def set_deadline(self, deadline = None):
+        if deadline is None: self.deadline = None
+        elif all(not isinstance(deadline, t) for t in (date, time, datetime)):
+            raise RuntimeError("set_deadline: deadline has a wrong type")
+        else:
+            self.deadline = deadline
+
     def set_qos(self, qos = None):
         self.qos = qos
 
@@ -304,6 +327,16 @@ class SLURMJob:
                                                      self.signal[0],
                                                      '' if self.signal[1] is None else '@' + str(self.signal[1])))
         if self.reservation:    t += render_option("reservation", str(self.reservation))
+        if self.begin:          t += render_option("begin", {
+                                                    str :       lambda s: s,
+                                                    date :      lambda s: s.isoformat(),
+                                                    time :      lambda s: s.isoformat(),
+                                                    datetime :  lambda s: s.isoformat(),
+                                                    timedelta : lambda s: 'now+' + (str(s.days)+"days" \
+                                                                if s.days > 0 else str(s.seconds))
+                                                   }[type(self.begin)](self.begin))
+        if self.immediate:      t += render_option("immediate")
+        if self.deadline:       t += render_option("deadline", self.deadline.isoformat())
         if self.qos:            t += render_option("qos", str(self.qos))
         if self.clusters:       t += render_option("clusters", ','.join(map(str, self.clusters)))
 

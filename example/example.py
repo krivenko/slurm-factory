@@ -1,7 +1,7 @@
 import sys
 sys.path = ['..'] + sys.path
 
-from datetime import timedelta
+from datetime import timedelta, date, time, datetime
 from slurm_factory import *
 
 job = SLURMJob(name = "hello_world")
@@ -17,11 +17,12 @@ job.select_nodes(sockets_per_node = 2,
                  mem = 16,
                  tmp = "32G",
                  constraints = "[haswell23*7|con19x|xx89a*9]")
-job.set_qos("qos")
 job.set_signal(sig_num='USR1', sig_time=600, shell_only=True)
 job.set_reservation("user_23")
-job.set_clusters(['cluster1','cluster2'])
 job.set_qos("qos")
+job.set_deadline(datetime(2017, 8, 11, 10, 8))
+job.defer_allocation(immediate = True, begin = timedelta(minutes = 15, days = 23))
+job.set_clusters(['cluster1','cluster2'])
 
 job.set_body("""
 srun -n ${SLURM_NTASKS} pwd
