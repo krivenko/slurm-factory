@@ -19,6 +19,7 @@ job.select_nodes(sockets_per_node = 2,
                  constraints = "[haswell23*7|con19x|xx89a*9]")
 job.set_qos("qos")
 job.set_signal(sig_num='USR1', sig_time=600, shell_only=True)
+job.set_reservation("user_23")
 job.set_clusters(['cluster1','cluster2'])
 job.set_qos("qos")
 

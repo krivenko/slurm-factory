@@ -58,6 +58,8 @@ constraints_regexps = (r"^\w+(\*\d)*(,\w+(\*\d)*)*$",      # List
 constraints_regexps = tuple(re.compile(r) for r in constraints_regexps)
 # RegExp for memory size expressions
 memory_size_regexp = re.compile(r"^[0-9]+[KMGT]$")
+# RegExp for reservation names
+reservation_regexp = re.compile(r"^[_\-a-z0-9]*$")
 
 # Validate filename pattern
 def valid_filename_patterns(filename):
@@ -68,6 +70,10 @@ def valid_filename_patterns(filename):
 def valid_memory_size(size):
     return (isinstance(size, int) and size > 0) or \
            (isinstance(size, str) and not memory_size_regexp.match(size) is None)
+
+# Validate reservation name
+def valid_reservation(reservation):
+    return (not reservation_regexp.match(reservation) is None)
 
 # Add #SBATCH option line
 def render_option(name, value = None):
@@ -113,10 +119,12 @@ class SLURMJob:
         self.set_email(kwargs.pop('mail_user', None), kwargs.pop('mail_type', None))
         # Signal
         self.signal = None
+        # Reservation
+        self.set_reservation()
         #QoS
-        self.qos = None
+        self.set_qos()
         # Clusters
-        self.clusters = None
+        self.set_clusters()
 
         # Job script body
         self.set_body(kwargs.pop('body', ''))
@@ -250,10 +258,18 @@ class SLURMJob:
         else:
             self.signal = (sig_num, sig_time, shell_only)
 
-    def set_qos(self, qos):
+    def set_reservation(self, reservation = None):
+        if reservation is None: self.reservation = None
+        elif not valid_reservation(reservation):
+            raise RuntimeError("set_reservation: invalid reservation name")
+        else:
+            self.reservation = reservation
+
+    def set_qos(self, qos = None):
         self.qos = qos
 
-    def set_clusters(self, clusters):
+    def set_clusters(self, clusters = None):
+        if clusters is None: self.clusters = None
         self.clusters = [clusters] if isinstance(clusters, str) else clusters
 
     def dump(self):
@@ -287,6 +303,7 @@ class SLURMJob:
             t += render_option("signal", "%s%s%s" % ('B:' if self.signal[2] else '',
                                                      self.signal[0],
                                                      '' if self.signal[1] is None else '@' + str(self.signal[1])))
+        if self.reservation:    t += render_option("reservation", str(self.reservation))
         if self.qos:            t += render_option("qos", str(self.qos))
         if self.clusters:       t += render_option("clusters", ','.join(map(str, self.clusters)))
 

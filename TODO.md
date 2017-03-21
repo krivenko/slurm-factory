@@ -61,8 +61,8 @@ Tier 1 functionality
     - `--dependency=<dependency_list>`
     - `--kill-on-invalid-dep=<yes|no>`
 
-* Reservations:
-    - `--reservation=<name>`
+* [DONE] Reservations:
+    - [DONE] `--reservation=<name>`
 
 * Allocation time constraints:
     - `--begin=<time>`
