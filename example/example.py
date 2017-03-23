@@ -16,7 +16,10 @@ job.select_nodes(sockets_per_node = 2,
                  threads_per_core = 2,
                  mem = 16,
                  tmp = "32G",
-                 constraints = "[haswell23*7|con19x|xx89a*9]")
+                 constraints = "[haswell23*7|con19x|xx89a*9]",
+                 gres = ['gpu', ('mic', 1), ('gpu', 2, 'kepler')],
+                 gres_enforce_binding = True,
+                 contiguous = True)
 job.set_signal(sig_num='USR1', sig_time=600, shell_only=True)
 job.set_reservation("user_23")
 job.set_qos("qos")

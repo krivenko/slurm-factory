@@ -34,9 +34,9 @@ Tier 1 functionality
     - [DONE] `--mem-per-cpu=<size[units]>`
     - [DONE] `--tmp=<size[units]>`
     - [DONE] `--constraint=<list>`
-    - `--gres=<list>`
-    - `--gres-flags=enforce-binding`
-    - `--contiguous`
+    - [DONE] `--gres=<list>`
+    - [DONE] `--gres-flags=enforce-binding`
+    - [DONE] `--contiguous`
     - `--nodelist=<node name list>`
     - `--nodefile=<node file>`
     - `--exclude=<node name list>`
@@ -86,6 +86,7 @@ Tier 1 functionality
 
 * **Unit tests**
 * **Documentation**
+* **PBS job generation**
 
 Tier 2 functionality
 --------------------

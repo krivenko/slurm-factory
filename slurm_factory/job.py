@@ -75,6 +75,12 @@ def valid_memory_size(size):
 def valid_reservation(reservation):
     return (not reservation_regexp.match(reservation) is None)
 
+# Validate generic consumable resources
+def valid_gres(gres):
+    if isinstance(gres, str): return True
+    if len(gres) > 3: return False
+    return all(isinstance(f, t) for f, t in zip(gres, (str, int, str)))
+
 # Add #SBATCH option line
 def render_option(name, value = None):
     if value:
@@ -163,7 +169,8 @@ class SLURMJob:
                 raise RuntimeError("set_time: 'time-min' cannot exceed 'time'")
 
     def select_nodes(self, sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
-                     mem = None, mem_per_cpu = None, tmp = None, constraints = None):
+                     mem = None, mem_per_cpu = None, tmp = None, constraints = None,
+                     gres = None, gres_enforce_binding = False, contiguous = False):
 
         if sockets_per_node is None: self.sockets_per_node = None
         elif sockets_per_node <= 0:
@@ -209,6 +216,16 @@ class SLURMJob:
             raise RuntimeError("select_nodes: invalid constraints %s" % constraints)
         else:
             self.constraints = constraints
+
+        if gres is None: self.gres = None
+        elif any(not valid_gres(g) for g in gres):
+            raise RuntimeError("select_nodes: invalid generic consumable resources %s" % gres)
+        else:
+            self.gres = map(lambda g: (g,) if isinstance(g, str) else g, gres)
+
+        self.gres_enforce_binding = gres_enforce_binding
+
+        self.contiguous = contiguous
 
     def set_workdir(self, workdir):
         self.workdir = workdir
@@ -314,6 +331,16 @@ class SLURMJob:
         if self.mem_per_cpu:    t += render_option("mem_per_cpu", str(self.mem_per_cpu))
         if self.tmp:            t += render_option("tmp", str(self.tmp))
         if self.constraints:    t += render_option("constraint", str(self.constraints))
+        if self.contiguous:     t += render_option("contiguous")
+        if self.gres:
+            def render_gres(g):
+                s = str(g[0])
+                if len(g) == 2:   s += ":%i" % g[1]
+                elif len(g) == 3: s += ":%s:%i" % (g[2], g[1])
+                return s
+            t += render_option("gres", ','.join(map(render_gres, self.gres)))
+        if self.gres_enforce_binding: t += render_option("gres-flags", "enforce-binding")
+
         if self.workdir:        t += render_option("workdir", str(self.workdir))
         if self.output:         t += render_option("output", str(self.output))
         if self.error:          t += render_option("error", str(self.error))
