@@ -29,6 +29,7 @@ import re
 from subprocess import Popen, check_output, PIPE
 from warnings import warn
 from datetime import datetime, date, time, timedelta
+from collections import Iterable
 
 # Locate default shell
 shell_path = os.environ['SHELL']
@@ -160,54 +161,55 @@ class SLURMJob:
 
         if time_min is None: self.time_min = None
         elif time_min < timedelta(0):
-            raise RuntimeError("set_time: negative 'time-min' durations are not allowed")
+            raise RuntimeError("set_time: negative 'time_min' durations are not allowed")
         elif self.time is None:
-            raise RuntimeError("set_time: cannot set 'time-min' without setting 'time'")
+            raise RuntimeError("set_time: cannot set 'time_min' without setting 'time'")
         else:
             self.time_min = time_min
             if self.time < self.time_min:
-                raise RuntimeError("set_time: 'time-min' cannot exceed 'time'")
+                raise RuntimeError("set_time: 'time_min' cannot exceed 'time'")
 
     def select_nodes(self, sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
                      mem = None, mem_per_cpu = None, tmp = None, constraints = None,
-                     gres = None, gres_enforce_binding = False, contiguous = False):
+                     gres = None, gres_enforce_binding = False, contiguous = False,
+                     nodelist = None, nodefile = None, exclude = None):
 
         if sockets_per_node is None: self.sockets_per_node = None
         elif sockets_per_node <= 0:
-            raise RuntimeError("select_nodes: sockets_per_node must be positive")
+            raise RuntimeError("select_nodes: 'sockets_per_node' must be positive")
         else:
             self.sockets_per_node = sockets_per_node
 
         if cores_per_socket is None: self.cores_per_socket = None
         elif cores_per_socket <= 0:
-            raise RuntimeError("select_nodes: cores_per_socket must be positive")
+            raise RuntimeError("select_nodes: 'cores_per_socket' must be positive")
         else:
             self.cores_per_socket = cores_per_socket
 
         if threads_per_core is None: self.threads_per_core = None
         elif threads_per_core <= 0:
-            raise RuntimeError("select_nodes: threads_per_core must be positive")
+            raise RuntimeError("select_nodes: 'threads_per_core' must be positive")
         else:
             self.threads_per_core = threads_per_core
 
         if mem is None: self.mem = None
         elif not valid_memory_size(mem):
-            raise RuntimeError("select_nodes: invalid size argument to mem option")
+            raise RuntimeError("select_nodes: invalid size argument to 'mem' option")
         else:
             self.mem = mem
 
         if mem_per_cpu is None: self.mem_per_cpu = None
         elif not valid_memory_size(mem_per_cpu):
-            raise RuntimeError("select_nodes: invalid size argument to mem_per_cpu option")
+            raise RuntimeError("select_nodes: invalid size argument to 'mem_per_cpu' option")
         else:
             self.mem_per_cpu = mem_per_cpu
 
         if (not self.mem is None) and (not self.mem_per_cpu is None):
-            raise RuntimeError("select_nodes: mem and mem_per_cpu options are mutually exclusive")
+            raise RuntimeError("select_nodes: 'mem' and 'mem_per_cpu' options are mutually exclusive")
 
         if tmp is None: self.tmp = None
         elif not valid_memory_size(tmp):
-            raise RuntimeError("select_nodes: invalid size argument to tmp option")
+            raise RuntimeError("select_nodes: invalid size argument to 'tmp' option")
         else:
             self.tmp = tmp
 
@@ -226,6 +228,20 @@ class SLURMJob:
         self.gres_enforce_binding = gres_enforce_binding
 
         self.contiguous = contiguous
+
+        if nodelist is None: self.nodelist = None
+        elif not isinstance(nodelist, Iterable):
+            raise RuntimeError("select_nodes: 'nodelist' must be iterable")
+        else:
+            self.nodelist = nodelist
+
+        if exclude is None: self.exclude = None
+        elif not isinstance(exclude, Iterable):
+            raise RuntimeError("select_nodes: 'exclude' must be iterable")
+        else:
+            self.exclude = exclude
+
+        self.nodefile = nodefile
 
     def set_workdir(self, workdir):
         self.workdir = workdir
@@ -275,7 +291,7 @@ class SLURMJob:
         if sig_time is None:
             self.signal = (sig_num, None, shell_only)
         elif not 0 <= sig_time <= 0xffff:
-            raise RuntimeError("set_signal: sig_time must be an integer between 0 and 65535")
+            raise RuntimeError("set_signal: 'sig_time' must be an integer between 0 and 65535")
         else:
             self.signal = (sig_num, sig_time, shell_only)
 
@@ -331,7 +347,6 @@ class SLURMJob:
         if self.mem_per_cpu:    t += render_option("mem_per_cpu", str(self.mem_per_cpu))
         if self.tmp:            t += render_option("tmp", str(self.tmp))
         if self.constraints:    t += render_option("constraint", str(self.constraints))
-        if self.contiguous:     t += render_option("contiguous")
         if self.gres:
             def render_gres(g):
                 s = str(g[0])
@@ -340,7 +355,10 @@ class SLURMJob:
                 return s
             t += render_option("gres", ','.join(map(render_gres, self.gres)))
         if self.gres_enforce_binding: t += render_option("gres-flags", "enforce-binding")
-
+        if self.contiguous:     t += render_option("contiguous")
+        if self.nodelist:       t += render_option("nodelist", ','.join(self.nodelist))
+        if self.nodefile:       t += render_option("nodefile", str(self.nodefile))
+        if self.exclude:        t += render_option("exclude", ','.join(self.exclude))
         if self.workdir:        t += render_option("workdir", str(self.workdir))
         if self.output:         t += render_option("output", str(self.output))
         if self.error:          t += render_option("error", str(self.error))

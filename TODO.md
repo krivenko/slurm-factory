@@ -25,7 +25,7 @@ Tier 1 functionality
     - `--spread-job`
     - `--licenses=<license>`
 
-* Node selection constraints:
+* [DONE] Node selection constraints:
     - [DONE] `--extra-node-info=<sockets[:cores[:threads]]>`
     - [DONE] `--sockets-per-node=<sockets>`
     - [DONE] `--cores-per-socket=<cores>`
@@ -37,9 +37,9 @@ Tier 1 functionality
     - [DONE] `--gres=<list>`
     - [DONE] `--gres-flags=enforce-binding`
     - [DONE] `--contiguous`
-    - `--nodelist=<node name list>`
-    - `--nodefile=<node file>`
-    - `--exclude=<node name list>`
+    - [DONE] `--nodelist=<node name list>`
+    - [DONE] `--nodefile=<node file>`
+    - [DONE] `--exclude=<node name list>`
 
 * [DONE] Working directory:
     - [DONE] `--workdir=<directory>`

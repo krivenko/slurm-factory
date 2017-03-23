@@ -19,7 +19,10 @@ job.select_nodes(sockets_per_node = 2,
                  constraints = "[haswell23*7|con19x|xx89a*9]",
                  gres = ['gpu', ('mic', 1), ('gpu', 2, 'kepler')],
                  gres_enforce_binding = True,
-                 contiguous = True)
+                 contiguous = True,
+                 nodelist = ['node7', 'node[11-15]'],
+                 nodefile = "nodes.txt",
+                 exclude = ['node[17-19]', 'node20'])
 job.set_signal(sig_num='USR1', sig_time=600, shell_only=True)
 job.set_reservation("user_23")
 job.set_qos("qos")
