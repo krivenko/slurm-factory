@@ -109,6 +109,8 @@ class SLURMJob:
         self.set_time(kwargs.pop('time', None), kwargs.pop('time_min', None))
         # Number of nodes
         self.set_nnodes()
+        # Specialized cores/threads
+        self.set_specialized()
         # Node selection
         self.select_nodes()
         # Working dir
@@ -176,6 +178,13 @@ class SLURMJob:
              (lambda n: n > 0,                     "'maxnodes' must be positive"),
              (lambda n: n >= self.minnodes,        "'minnodes' cannot exceed 'maxnodes'")])
         self.use_min_nodes = use_min_nodes
+
+    def set_specialized(self, cores = None, threads = None):
+        self.__check_and_store('core_spec', cores, [(lambda n: n > 0, "'cores' must be positive")])
+        self.__check_and_store('thread_spec', threads, [(lambda n: n > 0, "'threads' must be positive")])
+
+        if (not self.core_spec is None) and (not self.thread_spec is None):
+            raise RuntimeError("set_specialized: 'cores' and 'threads' options are mutually exclusive")
 
     def select_nodes(self, sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
                      mem = None, mem_per_cpu = None, tmp = None, constraints = None,
@@ -275,6 +284,8 @@ class SLURMJob:
         if self.minnodes:       t += render_option("nodes", str(self.minnodes) + ("-%d" % self.maxnodes
                                                                                   if self.maxnodes else ''))
         if self.use_min_nodes:  t += render_option("use-min-nodes")
+        if self.core_spec:      t += render_option("core-spec",   str(self.core_spec))
+        if self.thread_spec:    t += render_option("thread-spec", str(self.thread_spec))
         extra_node_info = (self.sockets_per_node, self.cores_per_socket, self.threads_per_core)
         if any(s is None for s in extra_node_info):
             if self.sockets_per_node:   t += render_option("sockets-per-node", str(self.sockets_per_node))
