@@ -34,6 +34,10 @@ job.set_deadline(datetime(2017, 8, 11, 10, 8))
 job.defer_allocation(immediate = True, begin = timedelta(minutes = 15, days = 23))
 job.set_clusters(['cluster1','cluster2'])
 
+export_file = open('export.txt', 'w')
+job.set_export_env(export_vars = ['SHELL', 'EDITOR'], set_vars = {'PATH' : '/opt/bin'},
+                   export_file = export_file.fileno())
+
 job.set_body("""
 srun -n ${SLURM_NTASKS} pwd
 """)

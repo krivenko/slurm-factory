@@ -29,6 +29,7 @@ import re
 from subprocess import Popen, PIPE
 from datetime import datetime, date, time, timedelta
 from collections import Iterable
+from warnings import warn
 
 from .version import default_sbatch_path
 
@@ -144,6 +145,8 @@ class SLURMJob:
         self.set_licenses()
         # Clusters
         self.set_clusters()
+        # Export environment variables
+        self.set_export_env()
 
         # Job script body
         self.set_body(kwargs.pop('body', ''))
@@ -286,6 +289,20 @@ class SLURMJob:
         if clusters is None: self.clusters = None
         self.clusters = [clusters] if isinstance(clusters, str) else clusters
 
+    def set_export_env(self, export_vars = None, set_vars = None, export_file = None):
+        self.__check_and_store('export_vars', export_vars,
+            [(lambda ev: all(isinstance(v, str) for v in ev) or (ev in ('ALL', 'NONE')),
+             "'export_vars' must contain strings")])
+        self.__check_and_store('set_vars', set_vars,
+            [(lambda sv: all(isinstance(v, str) for v in sv.keys()), "keys of 'set_vars' must be strings")])
+        self.__check_and_store('export_file', export_file,
+            [(lambda ef: isinstance(ef, str) or isinstance(ef, int), "invalid 'export_file' value")])
+        if isinstance(self.export_file, int):
+            try:
+                 os.fstat(self.export_file)
+            except OSError:
+                warn("set_export_env: invalid file descriptor in 'export_file'")
+
     def dump(self):
         # Add shebang
         t = "#!%s\n" % shell_path
@@ -351,6 +368,15 @@ class SLURMJob:
             render_license = lambda l: str(l[0]) if len(l) == 1 else "%s:%i" % (l[0], l[1])
             t += render_option("licenses", ','.join(map(render_license, self.licenses)))
         if self.clusters:       t += render_option("clusters", ','.join(map(str, self.clusters)))
+        if self.export_vars or self.set_vars:
+            if self.export_vars in ('ALL', 'NONE'):
+                t += render_option("export", self.export_vars)
+            else:
+                export = []
+                if self.export_vars: export += self.export_vars
+                if self.set_vars:    export += ["%s=%s" % (k, v) for k, v in self.set_vars.items()]
+                t += render_option("export", ','.join(export))
+        if self.export_file:    t += render_option("export-file", str(self.export_file))
 
         t += render_option("parsable")
         t += render_option("quiet")

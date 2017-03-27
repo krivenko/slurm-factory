@@ -80,9 +80,9 @@ Tier 1 functionality
 * [DONE] Cluster selection
     - [DONE] `--clusters=<string>`
 
-* Environment variables propagation:
-    - `--export=<environment variables | ALL | NONE>`
-    - `--export-file=<filename | fd>`
+* [DONE] Environment variables propagation:
+    - [DONE] `--export=<environment variables | ALL | NONE>`
+    - [DONE] `--export-file=<filename | fd>`
 
 * **Unit tests**
 * **Documentation**
