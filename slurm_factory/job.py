@@ -26,20 +26,14 @@ __metaclass__ = type
 
 import os
 import re
-from subprocess import Popen, check_output, PIPE
-from warnings import warn
+from subprocess import Popen, PIPE
 from datetime import datetime, date, time, timedelta
 from collections import Iterable
 
+from .version import default_sbatch_path
+
 # Locate default shell
 shell_path = os.environ['SHELL']
-
-# Locate 'sbatch' binary
-default_sbatch_path = ""
-for path in os.environ["PATH"].split(os.pathsep):
-    p = os.path.join(path, "sbatch")
-    if os.access(p, os.X_OK): default_sbatch_path = p
-if not default_sbatch_path: warn("Could not locate 'sbatch' executable")
 
 # Names of all UNIX signals supported on this platform
 import signal
@@ -339,7 +333,7 @@ class SLURMJob:
         return t
 
     def submit(self, sbatch_path = default_sbatch_path):
-        p = Popen(sbatch_path, stdout=PIPE, stdin=PIPE, stderr=PIPE)
+        p = Popen(sbatch_path, stdout = PIPE, stdin = PIPE, stderr = PIPE)
         stdoutdata, stderrdata = p.communicate(self.dump().encode('utf-8'))
         if p.returncode:
             error_msg = "%s failed to submit job '%s' with the following error message:\n%s" \
@@ -349,19 +343,6 @@ class SLURMJob:
             self.submitted = True
             self.job_id = int(parse_job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
             return self.job_id
-
-def slurm_version(sbatch_path = default_sbatch_path):
-    output = check_output([sbatch_path, '--version'])
-    return output.decode('utf-8').strip()
-
-def slurm_version_info(sbatch_path = default_sbatch_path):
-    sv = slurm_version(sbatch_path).replace('slurm','').strip()
-    def to_int_checked(x):
-        try:
-            return int(x)
-        except ValueError:
-            return x
-    return tuple(map(to_int_checked, sv.split('.')))
 
 def chain_jobs():
     # TODO

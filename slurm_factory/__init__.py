@@ -21,6 +21,8 @@
 ###################################################################################
 from __future__ import absolute_import
 
-from .job import SLURMJob, chain_jobs, slurm_version, slurm_version_info
+from .version import locate_sbatch_path, slurm_version, slurm_version_info
+from .job import SLURMJob, chain_jobs
 
-__all__ = ['SLURMJob', 'chain_jobs', 'slurm_version', 'slurm_version_info']
+__all__ = ['locate_sbatch_path', 'slurm_version', 'slurm_version_info',
+           'SLURMJob', 'chain_jobs']

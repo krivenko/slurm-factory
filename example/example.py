@@ -37,5 +37,5 @@ srun -n ${SLURM_NTASKS} pwd
 """)
 print(job.dump())
 
-#print(slurm_version())
-#print(slurm_version_info())
+print(slurm_version())
+print(slurm_version_info())
