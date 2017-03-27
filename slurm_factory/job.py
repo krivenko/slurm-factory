@@ -76,6 +76,12 @@ def valid_gres(gres):
     if len(gres) > 3: return False
     return all(isinstance(f, t) for f, t in zip(gres, (str, int, str)))
 
+# Validate license
+def valid_license(license):
+    if isinstance(license, str): return True
+    if len(license) > 2: return False
+    return isinstance(license[0], str) and isinstance(license[1], int)
+
 # Add #SBATCH option line
 def render_option(name, value = None):
     if value:
@@ -134,6 +140,8 @@ class SLURMJob:
         self.set_qos()
         # Account
         self.set_account()
+        # Licenses
+        self.set_licenses()
         # Clusters
         self.set_clusters()
 
@@ -269,6 +277,11 @@ class SLURMJob:
     def set_account(self, account = None):
         self.account = account
 
+    def set_licenses(self, licenses = None):
+        self.__check_and_store('licenses', licenses,
+            [(lambda ll: all(valid_license(l) for l in ll), "invalid licenses %s" % licenses)],
+            lambda ll: map(lambda l: (l,) if isinstance(l, str) else l, ll))
+
     def set_clusters(self, clusters = None):
         if clusters is None: self.clusters = None
         self.clusters = [clusters] if isinstance(clusters, str) else clusters
@@ -334,6 +347,9 @@ class SLURMJob:
         if self.deadline:       t += render_option("deadline", self.deadline.isoformat())
         if self.qos:            t += render_option("qos", str(self.qos))
         if self.account:        t += render_option("account", str(self.account))
+        if self.licenses:
+            render_license = lambda l: str(l[0]) if len(l) == 1 else "%s:%i" % (l[0], l[1])
+            t += render_option("licenses", ','.join(map(render_license, self.licenses)))
         if self.clusters:       t += render_option("clusters", ','.join(map(str, self.clusters)))
 
         t += render_option("parsable")

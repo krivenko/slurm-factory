@@ -18,12 +18,11 @@ Tier 1 functionality
     - `--mincpus=<n>`
     - `--overcommit`
     - `--switches=<count>[@<max-time>]`
-    - `--core-spec=<num>`
-    - `--thread-spec=<num>`
+    - [DONE] `--core-spec=<num>`
+    - [DONE] `--thread-spec=<num>`
     - `--exclusive[=user|mcs]`
     - `--oversubscribe`
     - `--spread-job`
-    - `--licenses=<license>`
 
 * [DONE] Node selection constraints:
     - [DONE] `--extra-node-info=<sockets[:cores[:threads]]>`
@@ -74,6 +73,9 @@ Tier 1 functionality
 
 * [DONE] Accounting
     - [DONE] `--account=<account>`
+
+* [DONE] Licenses
+    - [DONE] `--licenses=<license>`
 
 * [DONE] Cluster selection
     - [DONE] `--clusters=<string>`
