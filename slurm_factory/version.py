@@ -31,7 +31,7 @@ from warnings import warn
 def locate_sbatch_path():
     for path in os.environ["PATH"].split(os.pathsep):
         p = os.path.join(path, "sbatch")
-        if os.access(p, os.X_OK): default_sbatch_path = p
+        if os.access(p, os.X_OK): return p
 
 default_sbatch_path = locate_sbatch_path()
 if not default_sbatch_path: warn("Could not locate 'sbatch' executable")
