@@ -27,6 +27,7 @@ job.select_nodes(sockets_per_node = 2,
 job.set_signal(sig_num='USR1', sig_time=600, shell_only=True)
 job.set_reservation("user_23")
 job.set_qos("qos")
+job.set_account("myaccount")
 job.set_deadline(datetime(2017, 8, 11, 10, 8))
 job.defer_allocation(immediate = True, begin = timedelta(minutes = 15, days = 23))
 job.set_clusters(['cluster1','cluster2'])

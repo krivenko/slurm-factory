@@ -72,13 +72,11 @@ Tier 1 functionality
 * [DONE] Quality of service
     - [DONE] `--qos=<qos>`
 
+* [DONE] Accounting
+    - [DONE] `--account=<account>`
+
 * [DONE] Cluster selection
     - [DONE] `--clusters=<string>`
-
-* Accounting:
-    - `--account=<account>`
-    - `--acctg-freq`
-    - `--profile=<all|none|[energy[,|task[,|lustre[,|network]]]]>`
 
 * Environment variables propagation:
     - `--export=<environment variables | ALL | NONE>`
@@ -94,6 +92,10 @@ Tier 2 functionality
 * Checkpointing:
     - `--checkpoint=<time>`
     - `--checkpoint-dir=<directory>`
+
+* Profiling:
+    - `--acctg-freq`
+    - `--profile=<all|none|[energy[,|task[,|lustre[,|network]]]]>`
 
 * [DONE] SLURM version information:
     - [DONE] `--version`

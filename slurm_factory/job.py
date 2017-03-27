@@ -134,8 +134,10 @@ class SLURMJob:
         self.defer_allocation()
         # Deadline
         self.set_deadline()
-        #QoS
+        # QoS
         self.set_qos()
+        # Account
+        self.set_account()
         # Clusters
         self.set_clusters()
 
@@ -345,6 +347,9 @@ class SLURMJob:
     def set_qos(self, qos = None):
         self.qos = qos
 
+    def set_account(self, account = None):
+        self.account = account
+
     def set_clusters(self, clusters = None):
         if clusters is None: self.clusters = None
         self.clusters = [clusters] if isinstance(clusters, str) else clusters
@@ -407,6 +412,7 @@ class SLURMJob:
         if self.immediate:      t += render_option("immediate")
         if self.deadline:       t += render_option("deadline", self.deadline.isoformat())
         if self.qos:            t += render_option("qos", str(self.qos))
+        if self.account:        t += render_option("account", str(self.account))
         if self.clusters:       t += render_option("clusters", ','.join(map(str, self.clusters)))
 
         t += render_option("parsable")
