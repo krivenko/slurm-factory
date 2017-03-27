@@ -151,6 +151,16 @@ class SLURMJob:
     #    """Add a new dependency"""
     #    self.dependencies.append(job)
 
+    def __check_and_store(self, var_name, var_value, checks, apply_before_store = lambda x: x):
+        if var_value is None:
+            setattr(self, var_name, None)
+            return
+        for check, msg in checks:
+            if not check(var_value):
+                import inspect
+                raise RuntimeError("%s: %s" % (inspect.stack()[1][3], msg))
+        setattr(self, var_name, apply_before_store(var_value))
+
     def set_body(self, body):
         self.body = body.replace('\r\n', '\n')
 
@@ -158,142 +168,57 @@ class SLURMJob:
         self.partitions = [partition_names] if isinstance(partition_names, str) else partition_names
 
     def set_time(self, time, time_min = None):
-        if time is None: self.time = None
-        elif time < timedelta(0):
-            raise RuntimeError("set_time: negative 'time' durations are not allowed")
-        else: self.time = time
-
-        if time_min is None: self.time_min = None
-        elif time_min < timedelta(0):
-            raise RuntimeError("set_time: negative 'time_min' durations are not allowed")
-        elif self.time is None:
-            raise RuntimeError("set_time: cannot set 'time_min' without setting 'time'")
-        else:
-            self.time_min = time_min
-            if self.time < self.time_min:
-                raise RuntimeError("set_time: 'time_min' cannot exceed 'time'")
+        self.__check_and_store('time', time,
+            [(lambda t: t >= timedelta(0), "negative 'time' durations are not allowed")])
+        self.__check_and_store('time_min', time_min,
+            [(lambda t: t >= timedelta(0),     "negative 'time_min' durations are not allowed"),
+             (lambda t: not self.time is None, "cannot set 'time_min' without setting 'time'"),
+             (lambda t: self.time >= t,        "'time_min' cannot exceed 'time'")])
 
     def set_nnodes(self, minnodes = None, maxnodes = None, use_min_nodes = False):
-        if minnodes is None: self.minnodes = None
-        elif minnodes <= 0:
-            raise RuntimeError("set_nnodes: 'minnodes' must be positive")
-        else:
-            self.minnodes = minnodes
-
-        if maxnodes is None: self.maxnodes = None
-        elif minnodes is None:
-            RuntimeError("set_nnodes: cannot set 'maxnodes' without setting 'minnodes'")
-        elif maxnodes <= 0:
-            raise RuntimeError("set_nnodes: 'maxnodes' must be positive")
-        elif maxnodes < minnodes:
-            raise RuntimeError("set_nnodes: 'minnodes' cannot exceed 'maxnodes'")
-        else:
-            self.maxnodes = maxnodes
-
+        self.__check_and_store('minnodes', minnodes, [(lambda n: n > 0, "'minnodes' must be positive")])
+        self.__check_and_store('maxnodes', maxnodes,
+            [(lambda n: not self.minnodes is None, "cannot set 'maxnodes' without setting 'minnodes'"),
+             (lambda n: n > 0,                     "'maxnodes' must be positive"),
+             (lambda n: n >= self.minnodes,        "'minnodes' cannot exceed 'maxnodes'")])
         self.use_min_nodes = use_min_nodes
 
     def select_nodes(self, sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
                      mem = None, mem_per_cpu = None, tmp = None, constraints = None,
                      gres = None, gres_enforce_binding = False, contiguous = False,
                      nodelist = None, nodefile = None, exclude = None):
-
-        if sockets_per_node is None: self.sockets_per_node = None
-        elif sockets_per_node <= 0:
-            raise RuntimeError("select_nodes: 'sockets_per_node' must be positive")
-        else:
-            self.sockets_per_node = sockets_per_node
-
-        if cores_per_socket is None: self.cores_per_socket = None
-        elif cores_per_socket <= 0:
-            raise RuntimeError("select_nodes: 'cores_per_socket' must be positive")
-        else:
-            self.cores_per_socket = cores_per_socket
-
-        if threads_per_core is None: self.threads_per_core = None
-        elif threads_per_core <= 0:
-            raise RuntimeError("select_nodes: 'threads_per_core' must be positive")
-        else:
-            self.threads_per_core = threads_per_core
-
-        if mem is None: self.mem = None
-        elif not valid_memory_size(mem):
-            raise RuntimeError("select_nodes: invalid size argument to 'mem' option")
-        else:
-            self.mem = mem
-
-        if mem_per_cpu is None: self.mem_per_cpu = None
-        elif not valid_memory_size(mem_per_cpu):
-            raise RuntimeError("select_nodes: invalid size argument to 'mem_per_cpu' option")
-        else:
-            self.mem_per_cpu = mem_per_cpu
+        for p in ('sockets_per_node', 'cores_per_socket', 'threads_per_core'):
+            self.__check_and_store(p, vars()[p], [(lambda n: n > 0, "'%s' must be positive" % p)])
+        for p in ('mem', 'mem_per_cpu', 'tmp'):
+            self.__check_and_store(p, vars()[p], [(valid_memory_size, "invalid size argument to '%s' option" % p)])
 
         if (not self.mem is None) and (not self.mem_per_cpu is None):
             raise RuntimeError("select_nodes: 'mem' and 'mem_per_cpu' options are mutually exclusive")
 
-        if tmp is None: self.tmp = None
-        elif not valid_memory_size(tmp):
-            raise RuntimeError("select_nodes: invalid size argument to 'tmp' option")
-        else:
-            self.tmp = tmp
-
-        if constraints is None: self.constraints = None
-        elif all(r.match(constraints) is None for r in constraints_regexps):
-            raise RuntimeError("select_nodes: invalid constraints %s" % constraints)
-        else:
-            self.constraints = constraints
-
-        if gres is None: self.gres = None
-        elif any(not valid_gres(g) for g in gres):
-            raise RuntimeError("select_nodes: invalid generic consumable resources %s" % gres)
-        else:
-            self.gres = map(lambda g: (g,) if isinstance(g, str) else g, gres)
-
+        self.__check_and_store('constraints', constraints,
+            [(lambda c: any(not r.match(c) is None for r in constraints_regexps), "invalid constraints %s" % constraints)])
+        self.__check_and_store('gres', gres,
+            [(lambda gg: all(valid_gres(g) for g in gg), "invalid generic consumable resources %s" % gres)],
+            lambda gg: map(lambda g: (g,) if isinstance(g, str) else g, gg))
         self.gres_enforce_binding = gres_enforce_binding
 
         self.contiguous = contiguous
 
-        if nodelist is None: self.nodelist = None
-        elif not isinstance(nodelist, Iterable):
-            raise RuntimeError("select_nodes: 'nodelist' must be iterable")
-        else:
-            self.nodelist = nodelist
-
-        if exclude is None: self.exclude = None
-        elif not isinstance(exclude, Iterable):
-            raise RuntimeError("select_nodes: 'exclude' must be iterable")
-        else:
-            self.exclude = exclude
-
+        self.__check_and_store('nodelist', nodelist, [(lambda nl: isinstance(nl, Iterable), "'nodelist' must be iterable")])
+        self.__check_and_store('exclude', exclude,   [(lambda ex: isinstance(ex, Iterable), "'exclude' must be iterable")])
         self.nodefile = nodefile
 
     def set_workdir(self, workdir):
         self.workdir = workdir
 
     def set_job_streams(self, output, error = None, input = None, mode = 'w'):
-        if output is None: self.output = None
-        elif not valid_filename_patterns(output):
-            raise RuntimeError("set_job_streams: invalid filename pattern in 'output' argument")
-        else:
-            self.output = output
-
-        if error is None: self.error = None
-        elif not valid_filename_patterns(error):
-            raise RuntimeError("set_job_streams: invalid filename pattern in 'error' argument")
-        else:
-            self.error = error
-
-        if input is None: self.input = None
-        elif not valid_filename_patterns(input):
-            raise RuntimeError("set_job_streams: invalid filename pattern in 'input' argument")
-        else:
-            self.input = input
+        for s in ('output', 'error', 'input'):
+            self.__check_and_store(s, vars()[s],
+                [(valid_filename_patterns, "invalid filename pattern in '%s' argument" % s)])
 
         valid_modes = {'w' : 'truncate', 'a' : 'append'}
-        if mode is None: self.open_mode = None
-        elif mode not in valid_modes:
-            raise RuntimeError("set_job_streams: invalid open mode %s" % mode)
-        else:
-            self.open_mode = valid_modes[mode]
+        self.__check_and_store('open_mode', mode,
+            [(lambda m: m in valid_modes, "invalid open mode %s" % mode)], lambda m: valid_modes[m])
 
     def set_email(self, mail_user, mail_type):
         valid_types = ('BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL', 'STAGE_OUT',
@@ -319,30 +244,21 @@ class SLURMJob:
             self.signal = (sig_num, sig_time, shell_only)
 
     def set_reservation(self, reservation = None):
-        if reservation is None: self.reservation = None
-        elif not valid_reservation(reservation):
-            raise RuntimeError("set_reservation: invalid reservation name")
-        else:
-            self.reservation = reservation
+        self.__check_and_store('reservation', reservation, [(valid_reservation, "invalid reservation name")])
 
     def defer_allocation(self, begin = None, immediate = False):
         self.immediate = immediate
 
-        if begin is None: self.begin = None
-        elif all(not isinstance(begin, t) for t in (date, time, datetime, timedelta)) and \
-             (not begin in ('midnight', 'noon', 'fika', 'teatime', 'today', 'tomorrow')):
-            raise RuntimeError("defer_allocation: begin has a wrong type")
-        elif isinstance(begin, timedelta) and begin.days < 0:
-            raise RuntimeError("defer_allocation: negative 'begin' durations are not allowed")
-        else:
-            self.begin = begin
+        self.__check_and_store('begin', begin,
+            [(lambda b: any(isinstance(b, t) for t in (date, time, datetime, timedelta)) or \
+                        (b in ('midnight', 'noon', 'fika', 'teatime', 'today', 'tomorrow')),
+              "'begin' has a wrong type"),
+             (lambda b: not (isinstance(b, timedelta) and begin.days < 0),
+              "negative 'begin' durations are not allowed")])
 
     def set_deadline(self, deadline = None):
-        if deadline is None: self.deadline = None
-        elif all(not isinstance(deadline, t) for t in (date, time, datetime)):
-            raise RuntimeError("set_deadline: deadline has a wrong type")
-        else:
-            self.deadline = deadline
+        self.__check_and_store('deadline', deadline,
+            [(lambda d: any(isinstance(d, t) for t in (date, time, datetime)), "'deadline' has a wrong type")])
 
     def set_qos(self, qos = None):
         self.qos = qos
