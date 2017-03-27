@@ -8,8 +8,8 @@ Tier 1 functionality
     - [DONE] `--partition=<partition_names>`
     - [DONE] `--time=<time>`
     - [DONE] `--time-min=<time>`
-    - `--nodes=<minnodes[-maxnodes]>`
-    - `--use-min-nodes`
+    - [DONE] `--nodes=<minnodes[-maxnodes]>`
+    - [DONE] `--use-min-nodes`
     - `--ntasks=<number>`
     - `--cpus-per-task=<ncpus>`
     - `--ntasks-per-node=<ntasks>`

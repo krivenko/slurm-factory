@@ -113,6 +113,8 @@ class SLURMJob:
         self.set_partitions(kwargs.pop('partition', None))
         # Time & minimal time
         self.set_time(kwargs.pop('time', None), kwargs.pop('time_min', None))
+        # Number of nodes
+        self.set_nnodes()
         # Node selection
         self.select_nodes()
         # Working dir
@@ -168,6 +170,25 @@ class SLURMJob:
             self.time_min = time_min
             if self.time < self.time_min:
                 raise RuntimeError("set_time: 'time_min' cannot exceed 'time'")
+
+    def set_nnodes(self, minnodes = None, maxnodes = None, use_min_nodes = False):
+        if minnodes is None: self.minnodes = None
+        elif minnodes <= 0:
+            raise RuntimeError("set_nnodes: 'minnodes' must be positive")
+        else:
+            self.minnodes = minnodes
+
+        if maxnodes is None: self.maxnodes = None
+        elif minnodes is None:
+            RuntimeError("set_nnodes: cannot set 'maxnodes' without setting 'minnodes'")
+        elif maxnodes <= 0:
+            raise RuntimeError("set_nnodes: 'maxnodes' must be positive")
+        elif maxnodes < minnodes:
+            raise RuntimeError("set_nnodes: 'minnodes' cannot exceed 'maxnodes'")
+        else:
+            self.maxnodes = maxnodes
+
+        self.use_min_nodes = use_min_nodes
 
     def select_nodes(self, sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
                      mem = None, mem_per_cpu = None, tmp = None, constraints = None,
@@ -336,6 +357,9 @@ class SLURMJob:
         if self.partitions:     t += render_option("partition", ','.join(map(str, self.partitions)))
         if self.time:           t += render_option("time", format_timedelta(self.time))
         if self.time_min:       t += render_option("time-min", format_timedelta(self.time_min))
+        if self.minnodes:       t += render_option("nodes", str(self.minnodes) + ("-%d" % self.maxnodes
+                                                                                  if self.maxnodes else ''))
+        if self.use_min_nodes:  t += render_option("use-min-nodes")
         extra_node_info = (self.sockets_per_node, self.cores_per_socket, self.threads_per_core)
         if any(s is None for s in extra_node_info):
             if self.sockets_per_node:   t += render_option("sockets-per-node", str(self.sockets_per_node))
