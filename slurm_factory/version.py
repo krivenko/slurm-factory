@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ###################################################################################
 #
-# slurm-factory
+# slurm_factory
 #
 # Copyright (C) 2017 by I. Krivenko
 #
@@ -25,22 +25,29 @@ from __future__ import absolute_import, unicode_literals
 
 import os
 from subprocess import check_output
-from warnings import warn
 
-# Locate 'sbatch' binary
-def locate_sbatch_path():
+def version_info():
+    return (0, 1)
+
+def version():
+    return '.'.join(map(str, version_info()))
+
+# Locate 'sbatch' executable
+def locate_sbatch_executable():
     for path in os.environ["PATH"].split(os.pathsep):
         p = os.path.join(path, "sbatch")
         if os.access(p, os.X_OK): return p
+    raise RuntimeError("Could not locate 'sbatch' executable")
 
-default_sbatch_path = locate_sbatch_path()
-if not default_sbatch_path: warn("Could not locate 'sbatch' executable")
-
-def slurm_version(sbatch_path = default_sbatch_path):
+def slurm_version(sbatch_path = None):
+    if sbatch_path is None:
+        sbatch_path = locate_sbatch_executable()
     output = check_output([sbatch_path, '--version'])
     return output.decode('utf-8').strip()
 
-def slurm_version_info(sbatch_path = default_sbatch_path):
+def slurm_version_info(sbatch_path = None):
+    if sbatch_path is None:
+        sbatch_path = locate_sbatch_executable()
     sv = slurm_version(sbatch_path).replace('slurm', '').strip()
     def to_int_checked(x):
         try:

@@ -1,7 +1,7 @@
-slurm-factory
+slurm_factory
 =============
 
-https://github.com/krivenko/slurm-factory
+https://github.com/krivenko/slurm_factory
 
 Copyright (C) 2017 by I. Krivenko
 

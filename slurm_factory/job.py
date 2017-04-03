@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ###################################################################################
 #
-# slurm-factory
+# slurm_factory
 #
 # Copyright (C) 2017 by I. Krivenko
 #
@@ -31,7 +31,7 @@ from datetime import datetime, date, time, timedelta
 from collections import Iterable
 from warnings import warn
 
-from .version import default_sbatch_path
+from .version import locate_sbatch_executable
 
 # Locate default shell
 shell_path = os.environ['SHELL']
@@ -385,17 +385,20 @@ class SLURMJob:
 
         return t
 
-    def submit(self, sbatch_path = default_sbatch_path):
-        p = Popen(sbatch_path, stdout = PIPE, stdin = PIPE, stderr = PIPE)
-        stdoutdata, stderrdata = p.communicate(self.dump().encode('utf-8'))
-        if p.returncode:
-            error_msg = "%s failed to submit job '%s' with the following error message:\n%s" \
-                        % (sbatch_path, self.name, stderrdata.decode('utf-8'))
-            raise RuntimeError(error_msg)
-        else:
-            self.submitted = True
-            self.job_id = int(parse_job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
-            return self.job_id
+def submit(self, sbatch_path = None):
+    if sbatch_path is None:
+        sbatch_path = locate_sbatch_executable()
+
+    p = Popen(sbatch_path, stdout = PIPE, stdin = PIPE, stderr = PIPE)
+    stdoutdata, stderrdata = p.communicate(self.dump().encode('utf-8'))
+    if p.returncode:
+        error_msg = "%s failed to submit job '%s' with the following error message:\n%s" \
+                    % (sbatch_path, self.name, stderrdata.decode('utf-8'))
+        raise RuntimeError(error_msg)
+    else:
+        self.submitted = True
+        self.job_id = int(parse_job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
+        return self.job_id
 
 def chain_jobs():
     # TODO

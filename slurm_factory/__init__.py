@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ###################################################################################
 #
-# slurm-factory
+# slurm_factory
 #
 # Copyright (C) 2017 by I. Krivenko
 #
@@ -21,8 +21,10 @@
 ###################################################################################
 from __future__ import absolute_import
 
-from .version import locate_sbatch_path, slurm_version, slurm_version_info
-from .job import SLURMJob, chain_jobs
+from .version import (version, version_info,
+                      locate_sbatch_executable, slurm_version, slurm_version_info)
+from .job import SLURMJob, submit, chain_jobs
 
-__all__ = ['locate_sbatch_path', 'slurm_version', 'slurm_version_info',
-           'SLURMJob', 'chain_jobs']
+__all__ = ['version', 'version_info',
+           'locate_sbatch_executable', 'slurm_version', 'slurm_version_info',
+           'SLURMJob', 'submit', 'chain_jobs']
