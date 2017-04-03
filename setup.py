@@ -19,6 +19,7 @@ setup(name = 'slurm_factory',
         'Topic :: System :: Distributed Computing'
       ],
       url = 'https://github.com/krivenko/slurm_factory',
+      keywords = 'slurm pbs',
       author = 'Igor Krivenko',
       author_email = 'igor.s.krivenko@gmail.com',
       license = 'GPL',
