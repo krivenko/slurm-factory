@@ -7,8 +7,17 @@ from slurm_factory import *
 job = SLURMJob(name = "hello_world")
 
 job.set_partitions("debug")
-job.set_time(timedelta(minutes = 19, seconds = 12), timedelta(minutes = 15))
-job.set_nnodes(16, 32, use_min_nodes = True)
+job.set_walltime(timedelta(minutes = 19, seconds = 12), timedelta(minutes = 15))
+job.set_nodes_allocation(16, 32, use_min_nodes = True)
+job.set_tasks_allocation(ntasks = 128,
+                         cpus_per_task = 2,
+                         ntasks_per_node = 4,
+                         ntasks_per_socket = 2,
+                         ntasks_per_core = 1,
+                         overcommit = True,
+                         oversubscribe = True,
+                         exclusive = 'user',
+                         spread_job = True)
 job.set_specialized(threads = 4)
 job.set_workdir("./job_dir")
 job.set_job_streams(r"slurm-%x-%8j.out", r"slurm-%x-%8j.err", "/dev/random", 'a')

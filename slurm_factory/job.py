@@ -113,9 +113,11 @@ class SLURMJob:
         # Partitions
         self.set_partitions(kwargs.pop('partition', None))
         # Time & minimal time
-        self.set_time(kwargs.pop('time', None), kwargs.pop('time_min', None))
+        self.set_walltime(kwargs.pop('time', None), kwargs.pop('time_min', None))
         # Number of nodes
-        self.set_nnodes()
+        self.set_nodes_allocation()
+        # Number of tasks
+        self.set_tasks_allocation()
         # Specialized cores/threads
         self.set_specialized()
         # Node selection
@@ -174,7 +176,7 @@ class SLURMJob:
     def set_partitions(self, partition_names):
         self.partitions = [partition_names] if isinstance(partition_names, str) else partition_names
 
-    def set_time(self, time, time_min = None):
+    def set_walltime(self, time, time_min = None):
         self.__check_and_store('time', time,
             [(lambda t: t >= timedelta(0), "negative 'time' durations are not allowed")])
         self.__check_and_store('time_min', time_min,
@@ -182,13 +184,31 @@ class SLURMJob:
              (lambda t: not self.time is None, "cannot set 'time_min' without setting 'time'"),
              (lambda t: self.time >= t,        "'time_min' cannot exceed 'time'")])
 
-    def set_nnodes(self, minnodes = None, maxnodes = None, use_min_nodes = False):
+    def set_nodes_allocation(self, minnodes = None, maxnodes = None, use_min_nodes = False):
         self.__check_and_store('minnodes', minnodes, [(lambda n: n > 0, "'minnodes' must be positive")])
         self.__check_and_store('maxnodes', maxnodes,
             [(lambda n: not self.minnodes is None, "cannot set 'maxnodes' without setting 'minnodes'"),
              (lambda n: n > 0,                     "'maxnodes' must be positive"),
              (lambda n: n >= self.minnodes,        "'minnodes' cannot exceed 'maxnodes'")])
         self.use_min_nodes = use_min_nodes
+
+    def set_tasks_allocation(self, ntasks = None, cpus_per_task = None,
+                             ntasks_per_node = None, ntasks_per_socket = None, ntasks_per_core = None,
+                             overcommit = False,
+                             exclusive = None, oversubscribe = False, spread_job = False):
+        for p in ('ntasks','cpus_per_task','ntasks_per_node','ntasks_per_socket','ntasks_per_core'):
+            self.__check_and_store(p, vars()[p], [(lambda n: n > 0, "'%s' must be positive" % p)])
+
+        self.overcommit = overcommit
+
+        self.__check_and_store('exclusive', exclusive,
+            [(lambda e: e is True or e in ('user','mcs'), "invalid 'exclusive' option")])
+        self.oversubscribe = oversubscribe
+
+        if self.exclusive is True and self.oversubscribe:
+            raise RuntimeError("set_tasks_allocation: 'exclusive' and 'oversubscribe' options are mutually exclusive")
+
+        self.spread_job = spread_job
 
     def set_specialized(self, cores = None, threads = None):
         self.__check_and_store('core_spec', cores, [(lambda n: n > 0, "'cores' must be positive")])
@@ -321,6 +341,19 @@ class SLURMJob:
         if self.minnodes:       t += render_option("nodes", str(self.minnodes) + ("-%d" % self.maxnodes
                                                                                   if self.maxnodes else ''))
         if self.use_min_nodes:  t += render_option("use-min-nodes")
+        if self.ntasks:         t += render_option("ntasks", str(self.ntasks))
+        if self.cpus_per_task:  t += render_option("cpus-per-task", str(self.cpus_per_task))
+        if self.ntasks_per_node:    t += render_option("ntasks-per-node", str(self.ntasks_per_node))
+        if self.ntasks_per_socket:  t += render_option("ntasks-per-socket", str(self.ntasks_per_socket))
+        if self.ntasks_per_core:    t += render_option("ntasks-per-core", str(self.ntasks_per_core))
+        if self.overcommit:     t += render_option("overcommit")
+
+        if self.exclusive:      t += render_option("exclusive",
+                                                   None if self.exclusive is True else self.exclusive)
+        if self.oversubscribe:  t += render_option("oversubscribe")
+        if self.spread_job:     t += render_option("spread-job")
+
+
         if self.core_spec:      t += render_option("core-spec",   str(self.core_spec))
         if self.thread_spec:    t += render_option("thread-spec", str(self.thread_spec))
         if self.mincpus:        t += render_option("mincpus", str(self.mincpus))

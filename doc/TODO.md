@@ -4,23 +4,23 @@ TODO list
 Tier 1 functionality
 --------------------
 
-* Resource allocation:
+* [DONE] Resource allocation:
     - [DONE] `--partition=<partition_names>`
     - [DONE] `--time=<time>`
     - [DONE] `--time-min=<time>`
     - [DONE] `--nodes=<minnodes[-maxnodes]>`
     - [DONE] `--use-min-nodes`
-    - `--ntasks=<number>`
-    - `--cpus-per-task=<ncpus>`
-    - `--ntasks-per-node=<ntasks>`
-    - `--ntasks-per-socket=<ntasks>`
-    - `--ntasks-per-core=<ntasks>`
-    - `--overcommit`
+    - [DONE] `--ntasks=<number>`
+    - [DONE] `--cpus-per-task=<ncpus>`
+    - [DONE] `--ntasks-per-node=<ntasks>`
+    - [DONE] `--ntasks-per-socket=<ntasks>`
+    - [DONE] `--ntasks-per-core=<ntasks>`
+    - [DONE] `--overcommit`
     - [DONE] `--core-spec=<num>`
     - [DONE] `--thread-spec=<num>`
-    - `--exclusive[=user|mcs]`
-    - `--oversubscribe`
-    - `--spread-job`
+    - [DONE] `--exclusive[=user|mcs]`
+    - [DONE] `--oversubscribe`
+    - [DONE] `--spread-job`
 
 * [DONE] Node selection constraints:
     - [DONE] `--extra-node-info=<sockets[:cores[:threads]]>`
@@ -87,6 +87,7 @@ Tier 1 functionality
 * **Unit tests**
 * **Documentation**
 * **PBS job generation**
+* **Submit over SSH**
 
 Tier 2 functionality
 --------------------
