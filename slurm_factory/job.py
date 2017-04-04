@@ -119,7 +119,7 @@ class SLURMJob:
         # Specialized cores/threads
         self.set_specialized()
         # Node selection
-        self.select_nodes()
+        self.set_constraints()
         # Working dir
         self.set_workdir(kwargs.pop('workdir', None))
         # Job streams
@@ -197,17 +197,20 @@ class SLURMJob:
         if (not self.core_spec is None) and (not self.thread_spec is None):
             raise RuntimeError("set_specialized: 'cores' and 'threads' options are mutually exclusive")
 
-    def select_nodes(self, sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
-                     mem = None, mem_per_cpu = None, tmp = None, constraints = None,
-                     gres = None, gres_enforce_binding = False, contiguous = False,
-                     nodelist = None, nodefile = None, exclude = None):
+    def set_constraints(self, mincpus = None,
+                        sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
+                        mem = None, mem_per_cpu = None, tmp = None, constraints = None,
+                        gres = None, gres_enforce_binding = False, contiguous = False,
+                        nodelist = None, nodefile = None, exclude = None, switches = None):
+        self.__check_and_store('mincpus', mincpus, [(lambda n: n > 0, "'mincpus' must be positive")])
+
         for p in ('sockets_per_node', 'cores_per_socket', 'threads_per_core'):
             self.__check_and_store(p, vars()[p], [(lambda n: n > 0, "'%s' must be positive" % p)])
         for p in ('mem', 'mem_per_cpu', 'tmp'):
             self.__check_and_store(p, vars()[p], [(valid_memory_size, "invalid size argument to '%s' option" % p)])
 
         if (not self.mem is None) and (not self.mem_per_cpu is None):
-            raise RuntimeError("select_nodes: 'mem' and 'mem_per_cpu' options are mutually exclusive")
+            raise RuntimeError("set_constraints: 'mem' and 'mem_per_cpu' options are mutually exclusive")
 
         self.__check_and_store('constraints', constraints,
             [(lambda c: any(not r.match(c) is None for r in constraints_regexps), "invalid constraints %s" % constraints)])
@@ -221,6 +224,10 @@ class SLURMJob:
         self.__check_and_store('nodelist', nodelist, [(lambda nl: isinstance(nl, Iterable), "'nodelist' must be iterable")])
         self.__check_and_store('exclude', exclude,   [(lambda ex: isinstance(ex, Iterable), "'exclude' must be iterable")])
         self.nodefile = nodefile
+
+        valid_switches = lambda sw: isinstance(sw, int) or (len(sw) == 2 and sw[0] > 0 and sw[1] >= timedelta(0))
+        self.__check_and_store('switches', switches, [(valid_switches, "'switches' invalid 'switches' specification")],
+                               lambda sw: (sw,) if isinstance(sw, int) else sw)
 
     def set_workdir(self, workdir):
         self.workdir = workdir
@@ -316,6 +323,7 @@ class SLURMJob:
         if self.use_min_nodes:  t += render_option("use-min-nodes")
         if self.core_spec:      t += render_option("core-spec",   str(self.core_spec))
         if self.thread_spec:    t += render_option("thread-spec", str(self.thread_spec))
+        if self.mincpus:        t += render_option("mincpus", str(self.mincpus))
         extra_node_info = (self.sockets_per_node, self.cores_per_socket, self.threads_per_core)
         if any(s is None for s in extra_node_info):
             if self.sockets_per_node:   t += render_option("sockets-per-node", str(self.sockets_per_node))
@@ -339,6 +347,10 @@ class SLURMJob:
         if self.nodelist:       t += render_option("nodelist", ','.join(self.nodelist))
         if self.nodefile:       t += render_option("nodefile", str(self.nodefile))
         if self.exclude:        t += render_option("exclude", ','.join(self.exclude))
+        if self.switches:       t += render_option("switches", str(self.switches[0])
+                                                               if len(self.switches) == 1 else
+                                                               "%i@%s" % (self.switches[0],
+                                                                          format_timedelta(self.switches[1])) )
         if self.workdir:        t += render_option("workdir", str(self.workdir))
         if self.output:         t += render_option("output", str(self.output))
         if self.error:          t += render_option("error", str(self.error))

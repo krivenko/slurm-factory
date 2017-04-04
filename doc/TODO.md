@@ -15,9 +15,7 @@ Tier 1 functionality
     - `--ntasks-per-node=<ntasks>`
     - `--ntasks-per-socket=<ntasks>`
     - `--ntasks-per-core=<ntasks>`
-    - `--mincpus=<n>`
     - `--overcommit`
-    - `--switches=<count>[@<max-time>]`
     - [DONE] `--core-spec=<num>`
     - [DONE] `--thread-spec=<num>`
     - `--exclusive[=user|mcs]`
@@ -29,9 +27,11 @@ Tier 1 functionality
     - [DONE] `--sockets-per-node=<sockets>`
     - [DONE] `--cores-per-socket=<cores>`
     - [DONE] `--threads-per-core=<threads>`
+    - [DONE] `--mincpus=<n>`
     - [DONE] `--mem=<size[units]>`
     - [DONE] `--mem-per-cpu=<size[units]>`
     - [DONE] `--tmp=<size[units]>`
+    - [DONE] `--switches=<count>[@<max-time>]`
     - [DONE] `--constraint=<list>`
     - [DONE] `--gres=<list>`
     - [DONE] `--gres-flags=enforce-binding`
