@@ -28,8 +28,9 @@ import os
 import re
 from subprocess import Popen, PIPE
 from datetime import datetime, date, time, timedelta
-from collections import Iterable
+from collections import Iterable, OrderedDict
 from warnings import warn
+from inspect import stack
 
 from .version import locate_sbatch_executable
 
@@ -102,326 +103,356 @@ def format_timedelta(td):
         else:
             return "%i-%02i:%02i:%02i" % (td.days, hours, seconds/60, seconds%60)
 
+# Format GRES string
+def format_gres(g):
+    if isinstance(g, str): return g
+    s = str(g[0])
+    if len(g) == 2:   s += ":%i" % g[1]
+    elif len(g) == 3: s += ":%s:%i" % (g[2], g[1])
+    return s
+
+# Format license string
+def format_license(license):
+    return "%s:%s" % license if isinstance(license, tuple) else license
+
+# A bit more advanced asserts
+def assert_(cond, msg):
+    assert cond, stack()[1][3] + ": " + msg
+
+def assert_no_args_left(kwargs):
+    assert_(not kwargs, "unexpected keyword arguments %s" % ','.join(kwargs.keys()))
+
 class SLURMJob:
     """Description of a SLURM job"""
 
     def __init__(self, **kwargs):
         self.submitted = False
 
+        # Dictionary of all options
+        # Each option is either True or option's argument
+        self.options = OrderedDict()
+
         # Job Name
-        self.name = kwargs.pop('name', '')
+        self.job_name(kwargs.pop('name', None))
         # Partitions
-        self.set_partitions(kwargs.pop('partition', None))
+        self.partitions(kwargs.pop('partition', None))
         # Time & minimal time
-        self.set_walltime(kwargs.pop('time', None), kwargs.pop('time_min', None))
-        # Number of nodes
-        self.set_nodes_allocation()
-        # Number of tasks
-        self.set_tasks_allocation()
-        # Specialized cores/threads
-        self.set_specialized()
-        # Node selection
-        self.set_constraints()
+        self.walltime(kwargs.pop('time', None), kwargs.pop('time_min', None))
         # Working dir
-        self.set_workdir(kwargs.pop('workdir', None))
+        self.workdir(kwargs.pop('workdir', None))
         # Job streams
-        self.set_job_streams(kwargs.pop('output', None),
-                             kwargs.pop('error', None),
-                             kwargs.pop('input', None),
-                             kwargs.pop('open_mode', None))
+        self.job_streams(output = kwargs.pop('output', None),
+                         error = kwargs.pop('error', None),
+                         input = kwargs.pop('input', None),
+                         open_mode = kwargs.pop('open_mode', None))
         # E-mail notifications
-        self.set_email(kwargs.pop('mail_user', None), kwargs.pop('mail_type', None))
-        # Signal
-        self.signal = None
-        # Reservation
-        self.set_reservation()
-        # Defer allocation
-        self.defer_allocation()
-        # Deadline
-        self.set_deadline()
-        # QoS
-        self.set_qos()
-        # Account
-        self.set_account()
-        # Licenses
-        self.set_licenses()
-        # Clusters
-        self.set_clusters()
-        # Export environment variables
-        self.set_export_env()
+        self.email(kwargs.pop('mail_user', None), kwargs.pop('mail_type', None))
 
         # Job script body
         self.set_body(kwargs.pop('body', ''))
 
         # List of jobs, this job depends on
-#       self.dependencies = []
+        # TODO
+        #self.dependencies = []
 
-    #def add_dependency(job):
-    #    """Add a new dependency"""
-    #    self.dependencies.append(job)
+    # Some options need to be rendered in a special way
+    renderers = {
+        'partition' :       lambda arg: arg if isinstance(arg, str) else ','.join(map(str, arg)),
+        'time' :            format_timedelta,
+        'time-min' :        format_timedelta,
+        'exclusive' :       lambda arg: None if arg is True else arg,
+        'nodes' :           lambda arg: '-'.join(map(str, arg)),
+        'gres' :            lambda arg: ','.join(map(format_gres, arg)),
+        'gres-flags' :      lambda arg: "enforce-binding",
+        'nodelist' :        lambda arg: ','.join(arg),
+        'exclude' :         lambda arg: ','.join(arg),
+        'switches' :        lambda arg: arg if isinstance(arg, str) else "%i@%s" % (arg[0], format_timedelta(arg[1])),
+        'open-mode' :       lambda arg: {'w' : 'truncate', 'a' : 'append'}[arg],
+        'signal' :          lambda arg: "%s%s%s" % ('B:' if arg[2] else '', arg[0], '' if arg[1] is None else '@' + str(arg[1])),
+        'begin' :           lambda arg: { str :       lambda s: s,
+                                          date :      lambda s: s.isoformat(),
+                                          time :      lambda s: s.isoformat(),
+                                          datetime :  lambda s: s.isoformat(),
+                                          timedelta : lambda s: 'now+' + (str(s.days)+"days" if s.days > 0 else str(s.seconds))
+                                        }[type(arg)](arg),
+        'deadline' :        lambda arg: arg.isoformat(),
+        'licenses' :        lambda arg: ','.join(map(format_license, arg)),
+        'clusters' :        lambda arg: ','.join(map(str, arg)),
+        'export' :          lambda arg: ','.join(map(lambda e: "%s=%s" % e if isinstance(e, tuple) else e, arg))
+    }
 
-    def __check_and_store(self, var_name, var_value, checks, apply_before_store = lambda x: x):
-        if var_value is None:
-            setattr(self, var_name, None)
-            return
-        for check, msg in checks:
-            if not check(var_value):
-                import inspect
-                raise RuntimeError("%s: %s" % (inspect.stack()[1][3], msg))
-        setattr(self, var_name, apply_before_store(var_value))
+    def _add_option(self, name, arg, checks = []):
+        if arg is None or arg is False:
+            self.options.pop(name, None)
+            return False
+        else:
+            for check, msg in checks:
+                assert check(arg), "%s: %s" % (stack()[1][3], msg)
+            self.options[name] = arg
+            return True
+
+    def _add_option_from_dict(self, name, d, d_name, checks = []):
+        if not d_name in d: return False
+        r = self._add_option(name, d[d_name], checks)
+        del d[d_name]
+        return r
 
     def set_body(self, body):
+        """
+        TODO
+        """
         self.body = body.replace('\r\n', '\n')
 
-    def set_partitions(self, partition_names):
-        self.partitions = [partition_names] if isinstance(partition_names, str) else partition_names
+    def job_name(self, name):
+        """
+        TODO
+        """
+        self._add_option('job-name', name)
 
-    def set_walltime(self, time, time_min = None):
-        self.__check_and_store('time', time,
-            [(lambda t: t >= timedelta(0), "negative 'time' durations are not allowed")])
-        self.__check_and_store('time_min', time_min,
-            [(lambda t: t >= timedelta(0),     "negative 'time_min' durations are not allowed"),
-             (lambda t: not self.time is None, "cannot set 'time_min' without setting 'time'"),
-             (lambda t: self.time >= t,        "'time_min' cannot exceed 'time'")])
+    def partitions(self, names = None):
+        """
+        TODO
+        """
+        self._add_option('partition', names)
 
-    def set_nodes_allocation(self, minnodes = None, maxnodes = None, use_min_nodes = False):
-        self.__check_and_store('minnodes', minnodes, [(lambda n: n > 0, "'minnodes' must be positive")])
-        self.__check_and_store('maxnodes', maxnodes,
-            [(lambda n: not self.minnodes is None, "cannot set 'maxnodes' without setting 'minnodes'"),
-             (lambda n: n > 0,                     "'maxnodes' must be positive"),
-             (lambda n: n >= self.minnodes,        "'minnodes' cannot exceed 'maxnodes'")])
-        self.use_min_nodes = use_min_nodes
+    def walltime(self, time = None, time_min = None):
+        """
+        TODO
+        """
+        positive_td = lambda td: td >= timedelta(0)
+        self._add_option('time', time, [(positive_td, "negative 'time' durations are not allowed")])
+        self._add_option('time-min', time_min, [(positive_td, "negative 'time_min' durations are not allowed")])
+        if 'time-min' in self.options:
+            assert_('time' in self.options, "cannot set 'time_min' without setting 'time'")
+            assert_(self.options['time'] >= self.options['time-min'], "'time_min' cannot exceed 'time'")
 
-    def set_tasks_allocation(self, ntasks = None, cpus_per_task = None,
-                             ntasks_per_node = None, ntasks_per_socket = None, ntasks_per_core = None,
-                             overcommit = False,
-                             exclusive = None, oversubscribe = False, spread_job = False):
+    def nodes_allocation(self, minnodes = None, maxnodes = None, use_min_nodes = None):
+        """
+        TODO
+        """
+        has_min = self._add_option('minnodes', minnodes, [(lambda n: n > 0, "'minnodes' must be positive")])
+        has_max = self._add_option('maxnodes', maxnodes, [(lambda n: n > 0, "'maxnodes' must be positive")])
+
+        if has_max:
+            assert_(has_min, "cannot set 'maxnodes' without setting 'minnodes'")
+            assert_(self.options['maxnodes'] >= self.options['minnodes'], "'minnodes' cannot exceed 'maxnodes'")
+            self.options['nodes'] = (self.options.pop('minnodes'), self.options.pop('maxnodes'))
+        elif has_min:
+            self.options['nodes'] = (self.options.pop('minnodes'),)
+
+        self._add_option('use-min-nodes', use_min_nodes)
+
+    def tasks_allocation(self, **kwargs):
+        """
+        TODO
+        """
         for p in ('ntasks','cpus_per_task','ntasks_per_node','ntasks_per_socket','ntasks_per_core'):
-            self.__check_and_store(p, vars()[p], [(lambda n: n > 0, "'%s' must be positive" % p)])
+            self._add_option_from_dict(p.replace('_','-'), kwargs, p, [(lambda n: n > 0, "'%s' must be positive" % p)])
 
-        self.overcommit = overcommit
+        self._add_option_from_dict('overcommit', kwargs, 'overcommit')
 
-        self.__check_and_store('exclusive', exclusive,
-            [(lambda e: e is True or e in ('user','mcs'), "invalid 'exclusive' option")])
-        self.oversubscribe = oversubscribe
+        self._add_option_from_dict('exclusive', kwargs, 'exclusive',
+                                   [(lambda e: e is True or e in ('user','mcs'), "invalid 'exclusive' option")])
 
-        if self.exclusive is True and self.oversubscribe:
-            raise RuntimeError("set_tasks_allocation: 'exclusive' and 'oversubscribe' options are mutually exclusive")
+        self._add_option_from_dict('oversubscribe', kwargs, 'oversubscribe')
+        assert_(not(self.options.get('exclusive', None) is True and 'oversubscribe' in self.options),
+                "'exclusive' and 'oversubscribe' options are mutually exclusive")
 
-        self.spread_job = spread_job
+        self._add_option_from_dict('spread-job', kwargs, 'spread_job')
 
-    def set_specialized(self, cores = None, threads = None):
-        self.__check_and_store('core_spec', cores, [(lambda n: n > 0, "'cores' must be positive")])
-        self.__check_and_store('thread_spec', threads, [(lambda n: n > 0, "'threads' must be positive")])
+        assert_no_args_left(kwargs)
 
-        if (not self.core_spec is None) and (not self.thread_spec is None):
-            raise RuntimeError("set_specialized: 'cores' and 'threads' options are mutually exclusive")
+    def specialized(self, **kwargs):
+        """
+        TODO
+        """
+        self._add_option_from_dict('core-spec', kwargs, 'cores', [(lambda n: n > 0, "'cores' must be positive")])
+        self._add_option_from_dict('thread-spec', kwargs, 'threads', [(lambda n: n > 0, "'threads' must be positive")])
+        assert_(not('core-spec' in self.options and 'thread-spec' in self.options),
+                "'cores' and 'threads' options are mutually exclusive")
 
-    def set_constraints(self, mincpus = None,
-                        sockets_per_node = None, cores_per_socket = None, threads_per_core = None,
-                        mem = None, mem_per_cpu = None, tmp = None, constraints = None,
-                        gres = None, gres_enforce_binding = False, contiguous = False,
-                        nodelist = None, nodefile = None, exclude = None, switches = None):
-        self.__check_and_store('mincpus', mincpus, [(lambda n: n > 0, "'mincpus' must be positive")])
+        assert_no_args_left(kwargs)
+
+    def constraints(self, **kwargs):
+        """
+        TODO
+        """
+        self._add_option_from_dict('mincpus', kwargs, 'mincpus', [(lambda n: n > 0, "'mincpus' must be positive")])
 
         for p in ('sockets_per_node', 'cores_per_socket', 'threads_per_core'):
-            self.__check_and_store(p, vars()[p], [(lambda n: n > 0, "'%s' must be positive" % p)])
+            self._add_option_from_dict(p.replace('_','-'), kwargs, p, [(lambda n: n > 0, "'%s' must be positive" % p)])
+
         for p in ('mem', 'mem_per_cpu', 'tmp'):
-            self.__check_and_store(p, vars()[p], [(valid_memory_size, "invalid size argument to '%s' option" % p)])
+            self._add_option_from_dict(p.replace('_','-'), kwargs, p, [(valid_memory_size, "invalid size argument to '%s' option" % p)])
+        assert_(not('mem' in self.options and 'mem-per-cpu' in self.options), "'mem' and 'mem_per_cpu' options are mutually exclusive")
 
-        if (not self.mem is None) and (not self.mem_per_cpu is None):
-            raise RuntimeError("set_constraints: 'mem' and 'mem_per_cpu' options are mutually exclusive")
+        self._add_option_from_dict('constraint', kwargs, 'constraints',
+                                   [(lambda c: any(not r.match(c) is None for r in constraints_regexps), "invalid constraints")])
+        self._add_option_from_dict('gres', kwargs, 'gres',
+                                   [(lambda gg: all(valid_gres(g) for g in gg), "invalid generic consumable resources")])
+        self._add_option_from_dict('gres-flags', kwargs, 'gres_enforce_binding')
 
-        self.__check_and_store('constraints', constraints,
-            [(lambda c: any(not r.match(c) is None for r in constraints_regexps), "invalid constraints %s" % constraints)])
-        self.__check_and_store('gres', gres,
-            [(lambda gg: all(valid_gres(g) for g in gg), "invalid generic consumable resources %s" % gres)],
-            lambda gg: map(lambda g: (g,) if isinstance(g, str) else g, gg))
-        self.gres_enforce_binding = gres_enforce_binding
+        self._add_option_from_dict('contiguous', kwargs, 'contiguous')
 
-        self.contiguous = contiguous
-
-        self.__check_and_store('nodelist', nodelist, [(lambda nl: isinstance(nl, Iterable), "'nodelist' must be iterable")])
-        self.__check_and_store('exclude', exclude,   [(lambda ex: isinstance(ex, Iterable), "'exclude' must be iterable")])
-        self.nodefile = nodefile
+        self._add_option_from_dict('nodelist', kwargs, 'nodelist', [(lambda nl: isinstance(nl, Iterable), "'nodelist' must be iterable")])
+        self._add_option_from_dict('exclude', kwargs, 'exclude', [(lambda ex: isinstance(ex, Iterable), "'exclude' must be iterable")])
+        self._add_option_from_dict('nodefile', kwargs, 'nodefile')
 
         valid_switches = lambda sw: isinstance(sw, int) or (len(sw) == 2 and sw[0] > 0 and sw[1] >= timedelta(0))
-        self.__check_and_store('switches', switches, [(valid_switches, "'switches' invalid 'switches' specification")],
-                               lambda sw: (sw,) if isinstance(sw, int) else sw)
+        self._add_option_from_dict('switches', kwargs, 'switches', [(valid_switches, "invalid 'switches' specification")])
 
-    def set_workdir(self, workdir):
-        self.workdir = workdir
+        assert_no_args_left(kwargs)
 
-    def set_job_streams(self, output, error = None, input = None, mode = 'w'):
+    def workdir(self, workdir = None):
+        """
+        TODO
+        """
+        self._add_option('workdir', workdir)
+
+    def job_streams(self, **kwargs):
+        """
+        TODO
+        """
         for s in ('output', 'error', 'input'):
-            self.__check_and_store(s, vars()[s],
-                [(valid_filename_patterns, "invalid filename pattern in '%s' argument" % s)])
+            self._add_option_from_dict(s, kwargs, s,
+                                       [(valid_filename_patterns, "invalid filename pattern in '%s' argument" % s)])
+        self._add_option_from_dict('open-mode', kwargs, 'open_mode', [(lambda m: m in ('w','a'), "invalid open mode")])
 
-        valid_modes = {'w' : 'truncate', 'a' : 'append'}
-        self.__check_and_store('open_mode', mode,
-            [(lambda m: m in valid_modes, "invalid open mode %s" % mode)], lambda m: valid_modes[m])
+        assert_no_args_left(kwargs)
 
-    def set_email(self, mail_user, mail_type):
+    def email(self, mail_user = None, mail_type = None):
+        """
+        TODO
+        """
+        self._add_option('mail-user', mail_user)
+
         valid_types = ('BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL', 'STAGE_OUT',
                        'TIME_LIMIT', 'TIME_LIMIT_90', 'TIME_LIMIT_80', 'TIME_LIMIT_50')
-        if mail_type is None or mail_type == 'NONE':
-            self.mail_user = None
-            self.mail_type = None
-        elif mail_type not in valid_types:
-            raise RuntimeError("set_email: invalid event type %s" % mail_type)
-        else:
-            self.mail_type = mail_type
-            self.mail_user = mail_user
+        self._add_option('mail-type', mail_type, [(lambda t: t in valid_types, "invalid event type")])
 
-    def set_signal(self, sig_num, sig_time = None, shell_only = False):
-        if not sig_num in all_signals.keys() and not sig_num in all_signals.values():
-            raise RuntimeError("set_signal: unknown signal number/name " + str(sig_num))
+        if 'mail-type' not in self.options or self.options['mail-type'] == 'NONE':
+            self.options.pop('mail-user', None)
+
+    def signal(self, sig_num = None, sig_time = None, shell_only = False):
+        """
+        TODO
+        """
+        if sig_num is None:
+            self.options.pop('signal', None)
+            return
+
+        assert_(sig_num in all_signals.keys() or sig_num in all_signals.values(),
+                "unknown signal number/name " + str(sig_num))
 
         if sig_time is None:
             self.signal = (sig_num, None, shell_only)
         elif not 0 <= sig_time <= 0xffff:
-            raise RuntimeError("set_signal: 'sig_time' must be an integer between 0 and 65535")
+            raise AssertionError("signal: 'sig_time' must be an integer between 0 and 65535")
         else:
-            self.signal = (sig_num, sig_time, shell_only)
+            self.options['signal'] = (sig_num, sig_time, shell_only)
 
-    def set_reservation(self, reservation = None):
-        self.__check_and_store('reservation', reservation, [(valid_reservation, "invalid reservation name")])
+    def reservation(self, reservation = None):
+        """
+        TODO
+        """
+        self._add_option('reservation', reservation, [(valid_reservation, "invalid reservation name")])
 
     def defer_allocation(self, begin = None, immediate = False):
-        self.immediate = immediate
+        """
+        TODO
+        """
+        self._add_option('immediate', immediate)
 
-        self.__check_and_store('begin', begin,
-            [(lambda b: any(isinstance(b, t) for t in (date, time, datetime, timedelta)) or \
-                        (b in ('midnight', 'noon', 'fika', 'teatime', 'today', 'tomorrow')),
+        time_txt = ('midnight', 'noon', 'fika', 'teatime', 'today', 'tomorrow')
+        self._add_option('begin', begin,
+            [(lambda b: any(isinstance(b, t) for t in (date, time, datetime, timedelta)) or (b in time_txt),
               "'begin' has a wrong type"),
              (lambda b: not (isinstance(b, timedelta) and begin.days < 0),
               "negative 'begin' durations are not allowed")])
 
-    def set_deadline(self, deadline = None):
-        self.__check_and_store('deadline', deadline,
-            [(lambda d: any(isinstance(d, t) for t in (date, time, datetime)), "'deadline' has a wrong type")])
+    def deadline(self, deadline = None):
+        """
+        TODO
+        """
+        self._add_option('deadline', deadline,
+                         [(lambda d: any(isinstance(d, t) for t in (date, time, datetime)),
+                           "'deadline' has a wrong type")])
 
-    def set_qos(self, qos = None):
-        self.qos = qos
+    def qos(self, qos = None):
+        """
+        TODO
+        """
+        self._add_option('qos', qos)
 
-    def set_account(self, account = None):
-        self.account = account
+    def account(self, account = None):
+        """
+        TODO
+        """
+        self._add_option('account', account)
 
-    def set_licenses(self, licenses = None):
-        self.__check_and_store('licenses', licenses,
-            [(lambda ll: all(valid_license(l) for l in ll), "invalid licenses %s" % licenses)],
-            lambda ll: map(lambda l: (l,) if isinstance(l, str) else l, ll))
+    def licenses(self, licenses = None):
+        """
+        TODO
+        """
+        self._add_option('licenses', licenses,
+                         [(lambda ll: all(valid_license(l) for l in ll), "invalid licenses %s" % licenses)])
 
-    def set_clusters(self, clusters = None):
-        if clusters is None: self.clusters = None
-        self.clusters = [clusters] if isinstance(clusters, str) else clusters
+    def clusters(self, clusters = None):
+        """
+        TODO
+        """
+        self._add_option('clusters', clusters)
 
-    def set_export_env(self, export_vars = None, set_vars = None, export_file = None):
-        self.__check_and_store('export_vars', export_vars,
-            [(lambda ev: all(isinstance(v, str) for v in ev) or (ev in ('ALL', 'NONE')),
-             "'export_vars' must contain strings")])
-        self.__check_and_store('set_vars', set_vars,
-            [(lambda sv: all(isinstance(v, str) for v in sv.keys()), "keys of 'set_vars' must be strings")])
-        self.__check_and_store('export_file', export_file,
-            [(lambda ef: isinstance(ef, str) or isinstance(ef, int), "invalid 'export_file' value")])
-        if isinstance(self.export_file, int):
+    def export_env(self, export_vars = None, set_vars = None, export_file = None):
+        """
+        TODO
+        """
+        export = []
+        if not export_vars is None:
+            if export_vars in ('ALL', 'NONE'):
+                export = [export_vars]
+            else:
+                assert_(all(isinstance(v, str) for v in export_vars), "'export_vars' must contain strings")
+                export += export_vars
+
+        if not set_vars is None:
+            assert_(all(isinstance(v, str) for v in set_vars.keys()), "keys of 'set_vars' must be strings")
+            export += set_vars.items()
+
+        if export:
+            self.options['export'] = export
+        else:
+            del self.options['export']
+
+        has_export_file = self._add_option('export-file', export_file,
+                              [(lambda ef: isinstance(ef, str) or isinstance(ef, int), "invalid 'export_file' value")])
+        if has_export_file and isinstance(self.options['export-file'], int):
             try:
-                 os.fstat(self.export_file)
+                os.fstat(self.options['export-file'])
             except OSError:
-                warn("set_export_env: invalid file descriptor in 'export_file'")
+                warn("export_env: invalid file descriptor in 'export_file'")
+
+    # TODO
+    #def add_dependency(job):
+    #    """Add a new dependency"""
+    #    self.dependencies.append(job)
 
     def dump(self):
+        """
+        TODO
+        """
         # Add shebang
         t = "#!%s\n" % shell_path
+
         # Generate header
-        if self.name:           t += render_option("job-name", self.name)
-        if self.partitions:     t += render_option("partition", ','.join(map(str, self.partitions)))
-        if self.time:           t += render_option("time", format_timedelta(self.time))
-        if self.time_min:       t += render_option("time-min", format_timedelta(self.time_min))
-        if self.minnodes:       t += render_option("nodes", str(self.minnodes) + ("-%d" % self.maxnodes
-                                                                                  if self.maxnodes else ''))
-        if self.use_min_nodes:  t += render_option("use-min-nodes")
-        if self.ntasks:         t += render_option("ntasks", str(self.ntasks))
-        if self.cpus_per_task:  t += render_option("cpus-per-task", str(self.cpus_per_task))
-        if self.ntasks_per_node:    t += render_option("ntasks-per-node", str(self.ntasks_per_node))
-        if self.ntasks_per_socket:  t += render_option("ntasks-per-socket", str(self.ntasks_per_socket))
-        if self.ntasks_per_core:    t += render_option("ntasks-per-core", str(self.ntasks_per_core))
-        if self.overcommit:     t += render_option("overcommit")
-
-        if self.exclusive:      t += render_option("exclusive",
-                                                   None if self.exclusive is True else self.exclusive)
-        if self.oversubscribe:  t += render_option("oversubscribe")
-        if self.spread_job:     t += render_option("spread-job")
-
-
-        if self.core_spec:      t += render_option("core-spec",   str(self.core_spec))
-        if self.thread_spec:    t += render_option("thread-spec", str(self.thread_spec))
-        if self.mincpus:        t += render_option("mincpus", str(self.mincpus))
-        extra_node_info = (self.sockets_per_node, self.cores_per_socket, self.threads_per_core)
-        if any(s is None for s in extra_node_info):
-            if self.sockets_per_node:   t += render_option("sockets-per-node", str(self.sockets_per_node))
-            if self.cores_per_socket:   t += render_option("cores-per-socket", str(self.cores_per_socket))
-            if self.threads_per_core:   t += render_option("threads-per-core", str(self.threads_per_core))
-        else:
-            t += render_option("extra-node-info", ':'.join(map(str, extra_node_info)))
-        if self.mem:            t += render_option("mem", str(self.mem))
-        if self.mem_per_cpu:    t += render_option("mem_per_cpu", str(self.mem_per_cpu))
-        if self.tmp:            t += render_option("tmp", str(self.tmp))
-        if self.constraints:    t += render_option("constraint", str(self.constraints))
-        if self.gres:
-            def render_gres(g):
-                s = str(g[0])
-                if len(g) == 2:   s += ":%i" % g[1]
-                elif len(g) == 3: s += ":%s:%i" % (g[2], g[1])
-                return s
-            t += render_option("gres", ','.join(map(render_gres, self.gres)))
-        if self.gres_enforce_binding: t += render_option("gres-flags", "enforce-binding")
-        if self.contiguous:     t += render_option("contiguous")
-        if self.nodelist:       t += render_option("nodelist", ','.join(self.nodelist))
-        if self.nodefile:       t += render_option("nodefile", str(self.nodefile))
-        if self.exclude:        t += render_option("exclude", ','.join(self.exclude))
-        if self.switches:       t += render_option("switches", str(self.switches[0])
-                                                               if len(self.switches) == 1 else
-                                                               "%i@%s" % (self.switches[0],
-                                                                          format_timedelta(self.switches[1])) )
-        if self.workdir:        t += render_option("workdir", str(self.workdir))
-        if self.output:         t += render_option("output", str(self.output))
-        if self.error:          t += render_option("error", str(self.error))
-        if self.input:          t += render_option("input", str(self.input))
-        if self.open_mode:      t += render_option("open-mode", self.open_mode)
-        if self.mail_type:
-            t += render_option("mail-type", self.mail_type)
-            t += render_option("mail-user", str(self.mail_user))
-        if self.signal:
-            t += render_option("signal", "%s%s%s" % ('B:' if self.signal[2] else '',
-                                                     self.signal[0],
-                                                     '' if self.signal[1] is None else '@' + str(self.signal[1])))
-        if self.reservation:    t += render_option("reservation", str(self.reservation))
-        if self.begin:          t += render_option("begin", {
-                                                    str :       lambda s: s,
-                                                    date :      lambda s: s.isoformat(),
-                                                    time :      lambda s: s.isoformat(),
-                                                    datetime :  lambda s: s.isoformat(),
-                                                    timedelta : lambda s: 'now+' + (str(s.days)+"days" \
-                                                                if s.days > 0 else str(s.seconds))
-                                                   }[type(self.begin)](self.begin))
-        if self.immediate:      t += render_option("immediate")
-        if self.deadline:       t += render_option("deadline", self.deadline.isoformat())
-        if self.qos:            t += render_option("qos", str(self.qos))
-        if self.account:        t += render_option("account", str(self.account))
-        if self.licenses:
-            render_license = lambda l: str(l[0]) if len(l) == 1 else "%s:%i" % (l[0], l[1])
-            t += render_option("licenses", ','.join(map(render_license, self.licenses)))
-        if self.clusters:       t += render_option("clusters", ','.join(map(str, self.clusters)))
-        if self.export_vars or self.set_vars:
-            if self.export_vars in ('ALL', 'NONE'):
-                t += render_option("export", self.export_vars)
+        for name in self.options:
+            arg = self.options[name]
+            if name in SLURMJob.renderers:
+                t += render_option(name, SLURMJob.renderers[name](arg))
+            elif arg is True:
+                t += render_option(name)
             else:
-                export = []
-                if self.export_vars: export += self.export_vars
-                if self.set_vars:    export += ["%s=%s" % (k, v) for k, v in self.set_vars.items()]
-                t += render_option("export", ','.join(export))
-        if self.export_file:    t += render_option("export-file", str(self.export_file))
+                t += render_option(name, str(arg))
 
         t += render_option("parsable")
         t += render_option("quiet")
@@ -431,6 +462,9 @@ class SLURMJob:
         return t
 
 def submit(self, sbatch_path = None):
+    """
+    TODO
+    """
     if sbatch_path is None:
         sbatch_path = locate_sbatch_executable()
 
@@ -445,6 +479,8 @@ def submit(self, sbatch_path = None):
         self.job_id = int(parse_job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
         return self.job_id
 
-def chain_jobs():
-    # TODO
+def chain_jobs(jobs):
+    """
+    TODO
+    """
     pass
