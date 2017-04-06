@@ -84,6 +84,10 @@ def valid_license(license):
     if len(license) > 2: return False
     return isinstance(license[0], str) and isinstance(license[1], int)
 
+# Validate job object
+def valid_job(job):
+    return isinstance(job, SLURMJob) or isinstance(job, int)
+
 # Add #SBATCH option line
 def render_option(name, value = None):
     if value:
@@ -152,8 +156,9 @@ class SLURMJob:
         self.set_body(kwargs.pop('body', ''))
 
         # List of jobs, this job depends on
-        # TODO
-        #self.dependencies = []
+        self.dependencies = {t : [] for t in ('after','afterany','afternotok','afterok','expand','singleton')}
+        # Any dependency may be satisfied / all dependencies must be satisfied
+        self.deps_require_any = False
 
     # Some options need to be rendered in a special way
     renderers = {
@@ -432,10 +437,39 @@ class SLURMJob:
             except OSError:
                 warn("export_env: invalid file descriptor in 'export_file'")
 
-    # TODO
-    #def add_dependency(job):
-    #    """Add a new dependency"""
-    #    self.dependencies.append(job)
+    def add_dependencies(self, dep_type, jobs = None):
+        """
+        TODO
+        Add a new dependency
+        """
+        assert_(dep_type in self.dependencies,
+                "dependency type must be one of %s" % ','.join(self.dependencies.keys()))
+
+        if dep_type == 'expand':
+            assert_(len(jobs) == 1 and valid_job(jobs[0]), "'expand' dependency type requires one job argument")
+            self.dependencies[dep_type] = jobs
+        elif dep_type == 'singleton':
+            assert_(jobs is None, "'singleton' dependency type does not require 'jobs' argument")
+            self.dependencies[dep_type] = True
+        else:
+            self.dependencies[dep_type] = jobs
+
+    def clear_dependencies(self, dep_type = None):
+        """
+        TODO
+        """
+        if dep_type is None:
+            for t in self.dependencies: self.dependencies[t] = []
+        else:
+            assert_(dep_type in self.dependencies,
+                    "dependency type must be one of %s" % ','.join(self.dependencies.keys()))
+            self.dependencies[dep_type] = []
+
+    def dependencies_require_any(self, any = False):
+        """
+        TODO
+        """
+        self.deps_require_any = any
 
     def dump(self):
         """
@@ -468,7 +502,25 @@ def submit(self, sbatch_path = None):
     if sbatch_path is None:
         sbatch_path = locate_sbatch_executable()
 
-    p = Popen(sbatch_path, stdout = PIPE, stdin = PIPE, stderr = PIPE)
+    dep_ids = {k : [] for k in self.dependencies}
+    for dep_type, jobs in self.dependencies.items():
+        if dep_type == 'singleton': continue
+        for dep in self.dependencies[dep_type]:
+            if isinstance(dep, SLURMJob) and not dep.submitted:
+                dep_jobid = submit(dep, sbatch_path)
+            else:
+                dep_jobid = dep
+            dep_ids[dep_type].append(str(dep_jobid))
+
+    deps_sep = '?' if self.deps_require_any else ','
+    deps_str = deps_sep.join([':'.join([dep_type] + dep_ids[dep_type]) for dep_type in dep_ids if dep_ids[dep_type]])
+    if self.dependencies['singleton']:
+        deps_str += deps_sep + 'singleton'
+
+    if deps_str:
+        p = Popen(sbatch_path, '-d', deps_str, stdout = PIPE, stdin = PIPE, stderr = PIPE)
+    else:
+        p = Popen(sbatch_path, stdout = PIPE, stdin = PIPE, stderr = PIPE)
     stdoutdata, stderrdata = p.communicate(self.dump().encode('utf-8'))
     if p.returncode:
         error_msg = "%s failed to submit job '%s' with the following error message:\n%s" \
@@ -479,8 +531,14 @@ def submit(self, sbatch_path = None):
         self.job_id = int(parse_job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
         return self.job_id
 
-def chain_jobs(jobs):
+def chain_jobs(jobs, dep_type = 'afterany'):
     """
     TODO
     """
-    pass
+    assert_(all(isinstance(j, SLURMJob) for j in jobs), "invalid list of jobs")
+    valid_dep_types = ('after','afterany','afternotok','afterok')
+    assert_(dep_type in valid_dep_types, "dependency type must be one of %s" % ','.join(valid_dep_types))
+
+    for n in range(len(jobs)-1):
+        jobs[n+1].add_dependencies(dep_type, [jobs[n]])
+

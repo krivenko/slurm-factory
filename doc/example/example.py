@@ -56,5 +56,19 @@ srun -n ${SLURM_NTASKS} pwd
 """)
 print(job.dump())
 
-print(slurm_version())
-print(slurm_version_info())
+#job.add_dependencies('afterok', [123456, 456789])
+#job.add_dependencies('afterany', [785672])
+#job.add_dependencies('expand', [777777])
+#job.add_dependencies('singleton')
+#job.dependencies_require_any(True)
+
+#submit(job)
+
+#jobs = [SLURMJob(name = "hello_world") for n in range(5)]
+#chain_jobs(jobs, 'afterok')
+
+#for j in jobs:
+#    print j, ":", j.dependencies
+
+#print(slurm_version())
+#print(slurm_version_info())
