@@ -24,6 +24,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import os
+import re
 from subprocess import check_output
 
 def version_info():
@@ -54,4 +55,4 @@ def slurm_version_info(sbatch_path = None):
             return int(x)
         except ValueError:
             return x
-    return tuple(map(to_int_checked, sv.split('.')))
+    return tuple(map(to_int_checked, re.split('[\.-]', sv)))
