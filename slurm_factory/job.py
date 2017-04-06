@@ -495,41 +495,44 @@ class SLURMJob:
 
         return t
 
-def submit(self, sbatch_path = None):
+def submit(job, sbatch_path = None):
     """
     TODO
     """
+    assert_(isinstance(job, SLURMJob), "argument must be a SLURMJob object")
+
     if sbatch_path is None:
         sbatch_path = locate_sbatch_executable()
 
-    dep_ids = {k : [] for k in self.dependencies}
-    for dep_type, jobs in self.dependencies.items():
+    dep_ids = {k : [] for k in job.dependencies}
+    for dep_type in job.dependencies:
         if dep_type == 'singleton': continue
-        for dep in self.dependencies[dep_type]:
-            if isinstance(dep, SLURMJob) and not dep.submitted:
-                dep_jobid = submit(dep, sbatch_path)
+        for dep in job.dependencies[dep_type]:
+            if isinstance(dep, SLURMJob):
+                if not dep.submitted: submit(dep, sbatch_path)
+                dep_jobid = dep.job_id
             else:
                 dep_jobid = dep
             dep_ids[dep_type].append(str(dep_jobid))
 
-    deps_sep = '?' if self.deps_require_any else ','
+    deps_sep = '?' if job.deps_require_any else ','
     deps_str = deps_sep.join([':'.join([dep_type] + dep_ids[dep_type]) for dep_type in dep_ids if dep_ids[dep_type]])
-    if self.dependencies['singleton']:
+    if job.dependencies['singleton']:
         deps_str += deps_sep + 'singleton'
 
+    popen_args = [sbatch_path]
     if deps_str:
-        p = Popen(sbatch_path, '-d', deps_str, stdout = PIPE, stdin = PIPE, stderr = PIPE)
-    else:
-        p = Popen(sbatch_path, stdout = PIPE, stdin = PIPE, stderr = PIPE)
-    stdoutdata, stderrdata = p.communicate(self.dump().encode('utf-8'))
+        popen_args += ['-d', deps_str]
+    p = Popen(popen_args, stdout = PIPE, stdin = PIPE, stderr = PIPE)
+    stdoutdata, stderrdata = p.communicate(job.dump().encode('utf-8'))
     if p.returncode:
         error_msg = "%s failed to submit job '%s' with the following error message:\n%s" \
-                    % (sbatch_path, self.name, stderrdata.decode('utf-8'))
+                    % (sbatch_path, job.options.get('job-name',''), stderrdata.decode('utf-8'))
         raise RuntimeError(error_msg)
     else:
-        self.submitted = True
-        self.job_id = int(parse_job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
-        return self.job_id
+        job.submitted = True
+        job.job_id = int(parse_job_id_regexp.match(stdoutdata.decode('utf-8')).group(1))
+        return job.job_id
 
 def chain_jobs(jobs, dep_type = 'afterany'):
     """

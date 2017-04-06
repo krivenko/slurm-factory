@@ -62,13 +62,17 @@ print(job.dump())
 #job.add_dependencies('singleton')
 #job.dependencies_require_any(True)
 
-#submit(job)
 
-#jobs = [SLURMJob(name = "hello_world") for n in range(5)]
-#chain_jobs(jobs, 'afterok')
+jobs = [SLURMJob(name = "hello_world") for n in range(5)]
+for j in jobs:
+    j.constraints(constraints = 'haswell')
+    j.set_body("""
+hostname
+""")
 
-#for j in jobs:
-#    print j, ":", j.dependencies
+chain_jobs(jobs, 'afterok')
 
-#print(slurm_version())
-#print(slurm_version_info())
+for j in jobs: submit(j)
+
+print(slurm_version())
+print(slurm_version_info())
