@@ -145,8 +145,8 @@ Tier 2 functionality
 * Multi-Category Security:
     - `--mcs-label=<mcs>`
 
-* Burst buffer specification (validate filename patterns):
-    - `--bbf=<file_name>`
+* [DONE] Burst buffer specification (validate filename patterns):
+    - [DONE] `--bbf=<file_name>`
 
 * Wait for job termination:
     - `--wait`

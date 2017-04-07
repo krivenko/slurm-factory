@@ -437,6 +437,13 @@ class SLURMJob:
             except OSError:
                 warn("export_env: invalid file descriptor in 'export_file'")
 
+    def burst_buffer(self, bbf_file):
+        """
+        TODO
+        """
+        self._add_option('bbf', bbf_file)
+
+
     def add_dependencies(self, dep_type, jobs = None):
         """
         TODO
