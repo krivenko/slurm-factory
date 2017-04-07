@@ -56,9 +56,9 @@ Tier 1 functionality
 * [DONE] Signals
     - [DONE] `--signal=[B:]<sig_num>[@<sig_time>]`
 
-* Job dependencies:
-    - `--dependency=<dependency_list>`
-    - `--kill-on-invalid-dep=<yes|no>`
+* [DONE] Job dependencies:
+    - [DONE] `--dependency=<dependency_list>`
+    - [DONE] `--kill-on-invalid-dep=<yes|no>`
 
 * [DONE] Reservations:
     - [DONE] `--reservation=<name>`
@@ -87,6 +87,7 @@ Tier 1 functionality
 * **Unit tests**
 * **Documentation**
 * **PBS job generation**
+* **Burst buffer directives**
 * **Submit over SSH**
 
 Tier 2 functionality

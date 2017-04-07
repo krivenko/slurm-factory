@@ -183,7 +183,8 @@ class SLURMJob:
         'deadline' :        lambda arg: arg.isoformat(),
         'licenses' :        lambda arg: ','.join(map(format_license, arg)),
         'clusters' :        lambda arg: ','.join(map(str, arg)),
-        'export' :          lambda arg: ','.join(map(lambda e: "%s=%s" % e if isinstance(e, tuple) else e, arg))
+        'export' :          lambda arg: ','.join(map(lambda e: "%s=%s" % e if isinstance(e, tuple) else e, arg)),
+        'kill-on-invalid-dep': lambda arg: 'yes' if arg else 'no'
     }
 
     def _add_option(self, name, arg, checks = []):
@@ -477,6 +478,12 @@ class SLURMJob:
         TODO
         """
         self.deps_require_any = any
+
+    def kill_on_invalid_dep(self, kill = False):
+        """
+        TODO
+        """
+        self._add_option("kill-on-invalid-dep", kill);
 
     def dump(self):
         """

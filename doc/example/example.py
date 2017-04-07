@@ -50,6 +50,7 @@ job.clusters(['cluster1','cluster2'])
 export_file = open('export.txt', 'w')
 job.export_env(export_vars = ['SHELL', 'EDITOR'], set_vars = {'PATH' : '/opt/bin'},
                export_file = export_file.fileno())
+job.kill_on_invalid_dep(True)
 job.burst_buffer('bbf.txt')
 
 job.set_body("""
