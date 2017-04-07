@@ -137,11 +137,13 @@ class SLURMJob:
         self.options = OrderedDict()
 
         # Job Name
-        self.job_name(kwargs.pop('name', None))
+        self.job_name(kwargs.pop('job_name', None))
         # Partitions
-        self.partitions(kwargs.pop('partition', None))
+        self.partitions(kwargs.pop('partitions', None))
+        # Number of nodes
+        self.nodes_allocation(minnodes = kwargs.pop('nodes', None))
         # Time & minimal time
-        self.walltime(kwargs.pop('time', None), kwargs.pop('time_min', None))
+        self.walltime(kwargs.pop('walltime', None), kwargs.pop('time_min', None))
         # Working dir
         self.workdir(kwargs.pop('workdir', None))
         # Job streams
@@ -173,6 +175,7 @@ class SLURMJob:
         'exclude' :         lambda arg: ','.join(arg),
         'switches' :        lambda arg: arg if isinstance(arg, str) else "%i@%s" % (arg[0], format_timedelta(arg[1])),
         'open-mode' :       lambda arg: {'w' : 'truncate', 'a' : 'append'}[arg],
+        'mail-type' :       lambda arg: ','.join(arg),
         'signal' :          lambda arg: "%s%s%s" % ('B:' if arg[2] else '', arg[0], '' if arg[1] is None else '@' + str(arg[1])),
         'begin' :           lambda arg: { str :       lambda s: s,
                                           date :      lambda s: s.isoformat(),
@@ -326,7 +329,7 @@ class SLURMJob:
 
         assert_no_args_left(kwargs)
 
-    def email(self, mail_user = None, mail_type = None):
+    def email(self, mail_user = None, mail_types = None):
         """
         TODO
         """
@@ -334,7 +337,7 @@ class SLURMJob:
 
         valid_types = ('BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL', 'STAGE_OUT',
                        'TIME_LIMIT', 'TIME_LIMIT_90', 'TIME_LIMIT_80', 'TIME_LIMIT_50')
-        self._add_option('mail-type', mail_type, [(lambda t: t in valid_types, "invalid event type")])
+        self._add_option('mail-type', mail_types, [(lambda t: all((tt in valid_types) for tt in t), "invalid event type")])
 
         if 'mail-type' not in self.options or self.options['mail-type'] == 'NONE':
             self.options.pop('mail-user', None)
