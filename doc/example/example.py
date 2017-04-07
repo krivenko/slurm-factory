@@ -64,6 +64,7 @@ print(job.dump())
 #job.add_dependencies('singleton')
 #job.dependencies_require_any(True)
 
+print ("Cray")
 jobs = [SLURMJob(name = "hello_world") for n in range(5)]
 for j in jobs:
     j.constraints(constraints = 'haswell')

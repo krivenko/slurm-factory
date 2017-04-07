@@ -86,9 +86,10 @@ Tier 1 functionality
 
 * **Unit tests**
 * **Documentation**
-* **PBS job generation**
 * **Burst buffer directives**
 * **Submit over SSH**
+* **PBS job generation**
+
 
 Tier 2 functionality
 --------------------

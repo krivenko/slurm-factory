@@ -33,12 +33,12 @@ def version_info():
 def version():
     return '.'.join(map(str, version_info()))
 
-# Locate 'sbatch' executable
-def locate_sbatch_executable():
+# Locate executable
+def locate_executable(name):
     for path in os.environ["PATH"].split(os.pathsep):
-        p = os.path.join(path, "sbatch")
+        p = os.path.join(path, name)
         if os.access(p, os.X_OK): return p
-    raise RuntimeError("Could not locate 'sbatch' executable")
+    raise RuntimeError("Could not locate '%s' executable" % name)
 
 def slurm_version(sbatch_path = None):
     if sbatch_path is None:

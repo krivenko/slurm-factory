@@ -22,11 +22,11 @@
 from __future__ import absolute_import
 
 from .version import (version, version_info,
-                      locate_sbatch_executable, slurm_version, slurm_version_info)
+                      locate_executable, slurm_version, slurm_version_info)
 from .job import SLURMJob, submit, chain_jobs
 from .cray import CrayJob
 
 __all__ = ['version', 'version_info',
-           'locate_sbatch_executable', 'slurm_version', 'slurm_version_info',
+           'locate_executable', 'slurm_version', 'slurm_version_info',
            'SLURMJob', 'submit', 'chain_jobs',
            'CrayJob']

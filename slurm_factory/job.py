@@ -32,7 +32,7 @@ from collections import Iterable, OrderedDict
 from warnings import warn
 from inspect import stack
 
-from .version import locate_sbatch_executable
+from .version import locate_executable
 
 # Locate default shell
 shell_path = os.environ['SHELL']
@@ -516,7 +516,7 @@ def submit(job, sbatch_path = None):
     assert_(isinstance(job, SLURMJob), "argument must be a SLURMJob object")
 
     if sbatch_path is None:
-        sbatch_path = locate_sbatch_executable()
+        sbatch_path = locate_executable('sbatch')
 
     dep_ids = {k : [] for k in job.dependencies}
     for dep_type in job.dependencies:
