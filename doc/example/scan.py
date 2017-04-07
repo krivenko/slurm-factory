@@ -29,6 +29,9 @@ for x in np.linspace(0, 1.0, 11):
 srun -n ${SLURM_NTASKS} ./scan_x %.1f
     """ % x)
 
+    # Append job to the list
+    jobs.append(job)
+
 # Submit jobs and collect their IDs
 jobids = [submit(job) for job in jobs]
 
