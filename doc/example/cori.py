@@ -3,7 +3,7 @@
 # Example script for cori, a Cray XC40 cluster at
 # the National Energy Research Scientific Computing Center
 
-# Import SLURMJob class and some functions
+# Import SLURMJob class and submit()
 from slurm_factory.job import *
 
 # 'timedelta' represents time durations
@@ -57,7 +57,7 @@ job.set_body("""
 echo "Working in $(pwd) on host $(hostname)"
 echo "Local date/time is $(date)"
 
-#srun -n ${SLURM_NTASKS} ./my_prog
+srun -n ${SLURM_NTASKS} ./my_prog
 """)
 
 # Print generated job file
