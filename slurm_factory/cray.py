@@ -19,14 +19,36 @@
 # this program. If not, see <http://www.gnu.org/licenses/>.
 #
 ###################################################################################
-from __future__ import absolute_import
 
-from .version import (version, version_info,
-                      locate_sbatch_executable, slurm_version, slurm_version_info)
-from .job import SLURMJob, submit, chain_jobs
-from .cray import CrayJob
+# Python 2/3 compatibility
+from __future__ import absolute_import, print_function, unicode_literals
+__metaclass__ = type
 
-__all__ = ['version', 'version_info',
-           'locate_sbatch_executable', 'slurm_version', 'slurm_version_info',
-           'SLURMJob', 'submit', 'chain_jobs',
-           'CrayJob']
+from .job import SLURMJob
+
+class CrayJob(SLURMJob):
+    """
+    TODO
+    """
+
+    def __init__(self, **kwargs):
+        """
+        TODO
+        """
+        SLURMJob.__init__(self, **kwargs)
+
+    def network(self, type = None):
+        """
+        TODO
+        """
+        self._add_option('network', type, [(lambda t: t in ('system','blade'),
+                                            "network type must be either 'system' or 'blade'")])
+
+    def dump(self):
+        """
+        TODO
+        """
+        if 'network' in self.options:
+            self.options['exclusive'] = True
+
+        return SLURMJob.dump(self)

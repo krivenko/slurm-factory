@@ -158,8 +158,8 @@ Tier 2 functionality
     - `--delay-boot=<minutes>`
     - `--wait-all-nodes=<value>`
 
-* Options specific to Cray systems (derived class `SLURMCrayJob`):
-    - `--network=<type>`
+* [DONE] Options specific to Cray systems (derived class `SLURMCrayJob`):
+    - [DONE] `--network=<type>`
 
 * Options specific to Blue Gene systems (derived class `SLURMBlueGeneJob`):
     - `--blrts-image=<path>`

@@ -62,7 +62,6 @@ print(job.dump())
 #job.add_dependencies('singleton')
 #job.dependencies_require_any(True)
 
-
 jobs = [SLURMJob(name = "hello_world") for n in range(5)]
 for j in jobs:
     j.constraints(constraints = 'haswell')
@@ -72,7 +71,12 @@ hostname
 
 chain_jobs(jobs, 'afterok')
 
-for j in jobs: submit(j)
+#for j in jobs: submit(j)
 
-print(slurm_version())
-print(slurm_version_info())
+#print(slurm_version())
+#print(slurm_version_info())
+
+cjob = CrayJob(name = "cray_job", time = timedelta(hours = 1))
+cjob.network('blade')
+
+print(cjob.dump())
