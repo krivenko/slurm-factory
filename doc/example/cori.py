@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Example script for cori, a Cray XC40 cluster at
+# Example script for Cori, a Cray XC40 cluster at
 # the National Energy Research Scientific Computing Center
 
 # Import SLURMJob class and submit()
@@ -52,6 +52,12 @@ job.export_env(# Export the current environment variables into the batch job env
                # In addition to that set OMP_NUM_THREADS variable to 1
                set_vars = {'OMP_NUM_THREADS' : 1})
 
+# Request premium Quality of Service
+job.qos("premium")
+
+# Core specialization: isolate 2 cores on each node to run OS tasks
+job.specialized(cores = 2)
+
 # Add body to the job script
 job.set_body("""
 echo "Working in $(pwd) on host $(hostname)"
@@ -64,4 +70,5 @@ srun -n ${SLURM_NTASKS} ./my_prog
 print(job.dump())
 
 # Submit job
-submit(job)
+jobid = submit(job)
+print("Submitted Job ID: %i" % jobid)
