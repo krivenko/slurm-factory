@@ -459,6 +459,12 @@ class SLURMJob:
         else:
             self.options['no-requeue'] = True
 
+    def hold(self, hold = None):
+        """
+        TODO
+        """
+        self._add_option('hold', hold)
+
     def add_dependencies(self, dep_type, jobs = None):
         """
         TODO

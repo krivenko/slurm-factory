@@ -46,6 +46,7 @@ job.licenses([('foo',4),'bar'])
 job.deadline(datetime(2017, 8, 11, 10, 8))
 job.defer_allocation(immediate = True, begin = timedelta(minutes = 15, days = 23))
 job.clusters(['cluster1','cluster2'])
+job.hold(True)
 
 export_file = open('export.txt', 'w')
 job.export_env(export_vars = ['SHELL', 'EDITOR'], set_vars = {'PATH' : '/opt/bin'},

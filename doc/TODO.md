@@ -107,7 +107,7 @@ Tier 2 functionality
 
 * Scheduling priority
     - `--priority=<value>`
-    - `--hold`
+    - [DONE] `--hold`
 
 * Niceness settings
     - `--nice[=adjustment]`
