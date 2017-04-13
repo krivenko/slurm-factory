@@ -23,7 +23,7 @@ job.workdir("./job_dir")
 job.job_streams(output = r"slurm-%x-%8j.out",
                 error = r"slurm-%x-%8j.err",
                 input = "/dev/random", open_mode = 'a')
-job.email("slurm-user@example.com", 'END')
+job.email("slurm-user@example.com", ['END'])
 job.constraints(mincpus = 4,
                 sockets_per_node = 2,
                 cores_per_socket = 16,

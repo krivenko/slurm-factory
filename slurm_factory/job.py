@@ -447,6 +447,17 @@ class SLURMJob:
         """
         self._add_option('bbf', bbf_file)
 
+    def requeue(self, req = None):
+        """
+        TODO
+        """
+        if req is None:
+            self.options.pop('requeue')
+            self.options.pop('no-requeue')
+        elif req:
+            self.options['requeue'] = True
+        else:
+            self.options['no-requeue'] = True
 
     def add_dependencies(self, dep_type, jobs = None):
         """

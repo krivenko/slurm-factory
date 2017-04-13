@@ -118,9 +118,9 @@ Tier 2 functionality
 * Power management plugin options:
     - `--power=<flags>`
 
-* Job requeuing:
-    - `--requeue`
-    - `--no-requeue`
+* [DONE] Job requeuing:
+    - [DONE] `--requeue`
+    - [DONE] `--no-requeue`
 
 * Distribution methods for remote processes:
     - `--distribution=arbitrary|<block|cyclic|plane=<options>[:block|cyclic|fcyclic]>`
