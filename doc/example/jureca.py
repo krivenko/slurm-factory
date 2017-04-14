@@ -11,7 +11,7 @@ from datetime import timedelta
 # Create a job description object
 job = SLURMJob(job_name = "jureca_job",         # Job name
                nodes = 4,                       # Number of requested nodes
-               walltime = timedelta(hours = 6) # Wall time
+               walltime = timedelta(hours = 6)  # Wall time
                )
 # Cf. SLURMJob.job_name(), SLURMJob.nodes_allocation(minnodes = ...),
 #     SLURMJob.walltime() and SLURMJob.partitions()
