@@ -19,6 +19,9 @@
 # this program. If not, see <http://www.gnu.org/licenses/>.
 #
 ###################################################################################
+"""
+`CrayJob` class, extension of `SLURMJob` supporting Cray-specific options
+"""
 
 # Python 2/3 compatibility
 from __future__ import absolute_import, print_function, unicode_literals

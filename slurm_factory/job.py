@@ -19,6 +19,9 @@
 # this program. If not, see <http://www.gnu.org/licenses/>.
 #
 ###################################################################################
+"""
+`SLURMJob` class and related functions
+"""
 
 # Python 2/3 compatibility
 from __future__ import absolute_import, print_function, unicode_literals
@@ -127,7 +130,15 @@ def assert_no_args_left(kwargs):
     assert_(not kwargs, "unexpected keyword arguments %s" % ','.join(kwargs.keys()))
 
 class SLURMJob:
-    """Description of a SLURM job"""
+    """Description of a SLURM job
+
+    Object of this class represents a SLURM job, which can be
+    either submitted or unsubmitted. Status of a job is accessible
+    as `submitted` attribute.
+
+    A submitted job has an ID assigned to it by SLURM. The ID is
+    stored in `job_id` attribute.
+    """
 
     def __init__(self, **kwargs):
         self.submitted = False
@@ -507,7 +518,10 @@ class SLURMJob:
 
     def dump(self):
         """
-        TODO
+        Return contents of the corresponding job file as a string
+
+        Note that the dependency options are not included in the dump,
+        because they are generated upon job submission.
         """
         # Add shebang
         t = "#!%s\n" % shell_path
